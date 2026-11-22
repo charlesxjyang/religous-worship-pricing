@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+# Downloads and the local DuckDB file are rebuilt by the scripts.
+data/
+*.duckdb
+*.duckdb.wal
+.env
