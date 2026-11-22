@@ -129,7 +129,7 @@ def load_schools(con):
                  CAST(LAT AS DOUBLE) AS lat, CAST(LON AS DOUBLE) AS lon,
                  SCHOOLYEAR AS school_year
           FROM read_csv('{pub_txt}', delim = '|', header = false, columns = {cols},
-                        quote = '', encoding = 'latin-1')
+                        quote = '"', encoding = 'latin-1')
           WHERE STATE = 'NY'
         ), prv AS (
           SELECT 'nces_private' AS source, PPIN AS school_id, NAME AS name,
@@ -195,11 +195,32 @@ def build_report(con, release, overture_file):
       f"({100 * n_web / n_places:.0f}%) carry a website.\n")
     w(md_table(q("""
         SELECT basic_category, count(*) AS places,
-               round(100 * avg((len(websites) > 0)::INT)) AS pct_website,
-               round(100 * avg((len(phones) > 0)::INT)) AS pct_phone,
+               round(100 * avg((coalesce(len(websites), 0) > 0)::INT)) AS pct_website,
+               round(100 * avg((coalesce(len(phones), 0) > 0)::INT)) AS pct_phone,
                round(median(confidence), 2) AS median_confidence
         FROM places GROUP BY 1 ORDER BY 2 DESC
     """)))
+
+    w("\n## Overture: confidence bands\n")
+    w("Overture's confidence that the place exists. Low bands are candidates "
+      "for a cutoff in step 2.\n")
+    w(md_table(q("""
+        SELECT CASE WHEN confidence < 0.5 THEN 'a. under 0.50'
+                    WHEN confidence < 0.7 THEN 'b. 0.50-0.69'
+                    WHEN confidence < 0.9 THEN 'c. 0.70-0.89'
+                    ELSE 'd. 0.90 and up' END AS band,
+               count(*) AS places,
+               count(*) FILTER (WHERE operating_status = 'permanently_closed') AS closed
+        FROM places GROUP BY 1 ORDER BY 1
+    """)))
+    n_zip_out = n("""
+        SELECT count(*) FROM places
+        WHERE postcode IS NOT NULL
+          AND left(postcode, 3) NOT IN ('100','101','102','103','104',
+                                        '110','111','112','113','114','116')
+    """)
+    w(f"\n{n_zip_out:,} places sit inside the boroughs but list a ZIP code outside "
+      "NYC, a sign the point or the address is wrong.\n")
 
     w("\n## Overture: category by borough\n")
     w(md_table(q("""
