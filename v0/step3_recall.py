@@ -28,7 +28,8 @@ def main():
           SELECT f.*, t.geom,
                  CASE WHEN f.bldgclass IN ('M1', 'M9') THEN 'M1/M9 building class'
                       ELSE 'religious owner, institutional use' END AS why
-          FROM lot_flags f JOIN taxlots t USING (bbl)
+          FROM lot_flags f
+          JOIN (SELECT bbl, ST_Union_Agg(geom) AS geom FROM taxlots GROUP BY bbl) t USING (bbl)
           WHERE f.bldgclass IN ('M1', 'M9')
              OR (f.rel_owner AND f.landuse = 8 AND f.bldgarea > 0
                  AND NOT regexp_matches(f.ownername, '{NOT_WORSHIP_OWNER}'))

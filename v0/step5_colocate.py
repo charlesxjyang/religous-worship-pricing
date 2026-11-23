@@ -15,8 +15,8 @@ Flag, first match wins (plan, Version 0 step 5):
   single-use  the lot is religious-owned
   unknown     none of the above
 
-Two listings are the same congregation when they share a website or have the
-same normalized name; no fuzzy matching in v0.
+Two listings on a lot are the same congregation when they share a website, a
+phone number or a normalized name; no fuzzy matching in v0.
 
 Run after step 4c:  .venv/bin/python v0/step5_colocate.py
 """
@@ -36,6 +36,38 @@ TRADITION_FROM_TAXONOMY = """
       WHEN taxonomy_primary = 'sikh_place_of_worship' THEN 'Sikh'
       ELSE 'Unknown' END
 """
+
+
+def assign_congregations(con):
+    """Group listings on one gathering lot into congregations.
+
+    Two listings on the same lot are one congregation when they share a
+    website, a phone number or a normalized name (the plan's merge keys, used
+    exactly; no fuzzy matching in v0). Differently named listings with none of
+    these in common stay separate: that overlap is what is measured.
+    """
+    rows = con.execute("""
+        SELECT g.id, g.gathering_bbl, g.cong_key, coalesce(p.phones, []) AS phones
+        FROM place_gathering g JOIN places p USING (id)
+        WHERE coalesce(g.operating_status, '') <> 'permanently_closed'
+          AND coalesce(g.site_match, '') <> 'no'
+          -- its own website says it is an office, school or charity, not a congregation
+          AND NOT (g.site_ok AND g.is_congregation = false)
+    """).fetchall()
+    parent = {}
+
+    def find(x):
+        while parent.setdefault(x, x) != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for pid, bbl, ckey, phones in rows:
+        keys = [f"{bbl}|{ckey}"] + [f"{bbl}|tel:{ph[-10:]}" for ph in phones if ph]
+        for k in keys:
+            parent[find(k)] = find(f"id:{pid}")
+    con.execute("CREATE OR REPLACE TABLE place_cong (id VARCHAR, cong_id VARCHAR)")
+    con.executemany("INSERT INTO place_cong VALUES (?, ?)", [(r[0], find(f"id:{r[0]}")) for r in rows])
 
 
 def main():
@@ -96,6 +128,8 @@ def main():
         FROM base b LEFT JOIN locs l ON l.id = b.id AND l.rk = 1
     """)
 
+    assign_congregations(con)
+
     con.execute("""
         CREATE OR REPLACE TABLE place_services AS
         SELECT g.id,
@@ -115,11 +149,9 @@ def main():
     con.execute("""
         CREATE OR REPLACE TABLE place_colocation AS
         WITH active AS (
-          SELECT * FROM place_gathering
-          WHERE coalesce(operating_status, '') <> 'permanently_closed'
-            AND coalesce(site_match, '') <> 'no'
+          SELECT g.*, c.cong_id FROM place_gathering g JOIN place_cong c USING (id)
         ), per_lot AS (
-          SELECT gathering_bbl, count(DISTINCT cong_key) AS n_congregations,
+          SELECT gathering_bbl, count(DISTINCT cong_id) AS n_congregations,
                  string_agg(DISTINCT name, ' | ') AS names_on_lot
           FROM active GROUP BY 1
         ), shares AS (

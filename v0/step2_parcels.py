@@ -120,7 +120,10 @@ def flag_lots(con):
                coalesce(sch.n_schools, 0) AS n_schools, sch.school_names,
                coalesce(sch.has_public_school, false) AS has_public_school,
                coalesce(sch.has_private_school, false) AS has_private_school
-        FROM parcels p LEFT JOIN sch USING (bbl)
+        -- 64 BBLs have two polygons in the DOF file; keep one flag row per BBL.
+        FROM (SELECT * EXCLUDE (geom) FROM parcels
+              QUALIFY row_number() OVER (PARTITION BY bbl ORDER BY bldgclass NULLS LAST) = 1) p
+        LEFT JOIN sch USING (bbl)
     """)
 
 

@@ -166,8 +166,9 @@ def report(con) -> str:
     w("- The cloud session reaches websites only over HTTPS; sites with no HTTPS show as "
       "connection or TLS errors and would load from a normal network.")
     w("- Version 0 reads static HTML only: no JavaScript rendering, PDFs or social media.")
-    w("- Duplicates across Overture records are merged only when they share a website or an "
-      "identical normalized name, so some \"shared\" flags are one congregation listed twice.")
+    w("- Listings on one lot count as one congregation only when they share a website, a phone "
+      "number or an identical normalized name, so some \"shared\" flags are one congregation "
+      "listed twice under different names.")
     w("- Places with no website (about a third) can only be judged at their listing lot.")
     return "\n".join(out) + "\n"
 
