@@ -6,3 +6,5 @@ duckdb-extension-httpfs==2.0.0
 duckdb-extension-spatial==2.0.0
 pandas==3.1.1
 pyarrow==26.0.1
+anthropic==2.12.0
+beautifulsoup4==4.15.0
