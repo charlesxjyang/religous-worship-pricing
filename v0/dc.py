@@ -103,11 +103,14 @@ def load_parcels(con):
     ex_parts = arcgis_pages(config.DC_TAX_EXEMPT, "OBJECTID,SSL,EXEMPTION_TYPE,EXPIRED_DATE,ENDING_DATE",
                             ex_dir, geometry=False)
 
+    # Open exemptions carry EXPIRED_DATE = year 9999 (epoch ms), not a blank.
+    now_ms = time.time() * 1000
     ex_rows = []
     for p in ex_parts:
         for f in json.loads(p.read_text()).get("features", []):
             a = f["attributes"]
-            if not a.get("EXPIRED_DATE") and not a.get("ENDING_DATE") and a.get("SSL"):
+            live = all(a.get(k) is None or a[k] > now_ms for k in ("EXPIRED_DATE", "ENDING_DATE"))
+            if live and a.get("SSL"):
                 ex_rows.append((a["SSL"].strip(), a.get("EXEMPTION_TYPE")))
     con.execute("CREATE OR REPLACE TABLE dc_exempt (ssl VARCHAR, exemption_type VARCHAR)")
     con.executemany("INSERT INTO dc_exempt VALUES (?, ?)", ex_rows)

@@ -10,7 +10,7 @@ export CITY="${1:?usage: v0/run_city.sh nyc|dc [--after-extract]}"
 .venv/bin/pip install -q -r requirements.txt
 py=.venv/bin/python
 if [ "${2:-}" != "--after-extract" ]; then
-  $py v0/step1_load.py > /dev/null
+  $py v0/step1_load.py
   $py v0/step2_parcels.py
   $py v0/step2b_listing_geocode.py
   $py v0/step2c_irs.py

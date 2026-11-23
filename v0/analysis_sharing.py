@@ -56,7 +56,8 @@ def build(con):
                  any_value(gathering_bin) AS bin,
                  any_value(listing_lot_method) AS lot_method,
                  any_value(boroname) AS borough,
-                 mode(tradition) AS tradition,
+                 -- a known tradition beats Unknown; ties go to the most confident listing
+                 first(tradition ORDER BY tradition IN ('Unknown', 'Other'), confidence DESC, id) AS tradition,
                  count(*) AS listings,
                  string_agg(DISTINCT name, ' | ') AS names,
                  max(confidence) AS confidence,

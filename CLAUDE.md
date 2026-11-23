@@ -47,7 +47,27 @@ Status:
   website, phone, `names.names_match` and IRS EIN, and grades each "shared"
   flag (`shared_evidence`).
 - Scope (Charles, 2026-11-23): NYC plus about two other cities to start.
-  Which two is open.
+  Washington, DC is the second (Charles, 2026-11-23); the third is open.
+
+## Cities
+
+Every script takes the city from the `CITY` environment variable (`nyc`,
+the default, or `dc`); `v0/config.py` holds the per-city settings and
+`v0/dc.py` the DC loaders. Outputs: NYC in `v0/`, DC in `v0/dc/`, each with a
+gitignored `private/` folder. Rebuild a city end to end with
+`v0/run_city.sh nyc|dc` (extraction excluded), then `--after-extract`.
+
+| Input | NYC | Washington, DC |
+| --- | --- | --- |
+| Subareas | 5 boroughs | 8 wards (DCGIS Ward - 2022) |
+| Parcels | PLUTO + DOF tax lots; key BBL | OTR owner polygons (ITSPE); key SSL, surrogate `bbl` |
+| Building type | DOF building class | DC use code mapped to DOF classes (`dc.USE_TO_CLASS`; 081 Religious = M1) |
+| Religious ownership | class M, owner name | class M, owner name, RPTA exemption E1 (religious) |
+| Geocoder | GeoSearch (BBL and BIN) | exact match to a parcel's premise address, else Census geocoder + parcel under the point; no building ID |
+| IRS file | eo_ny.csv | eo_dc.csv |
+
+A new cloud session gets environment variables (the API key) but not
+`data/`, which is gitignored: rebuild with `v0/run_city.sh` first.
 
 ```bash
 .venv/bin/python v0/step2_parcels.py
@@ -61,7 +81,8 @@ Status:
 .venv/bin/python v0/step6_report.py
 ```
 
-Only one process can open `data/nyc/nyc_v0.duckdb` at a time; run steps in order.
+Only one process can open a city's DuckDB file at a time; run steps in order.
+Prefix any command with `CITY=dc` for Washington, DC.
 
 ## NYC notes for steps 2–6
 
