@@ -20,6 +20,7 @@ Run after step 5:  .venv/bin/python v0/analysis_sharing.py
 
 import datetime as dt
 
+import checks
 import config
 from common import connect
 from step1_load import md_table
@@ -75,7 +76,7 @@ def build(con):
     """)
     # Other congregations on the same lot, within each population variant.
     con.execute("""
-        CREATE OR REPLACE TABLE cong_sharing AS
+        CREATE OR REPLACE TABLE cong_sharing_raw AS
         WITH irs_lot AS (
           SELECT bbl, count(DISTINCT ein) AS irs_congs FROM irs_orgs
           WHERE kind = 'congregation' AND bbl IS NOT NULL GROUP BY 1
@@ -93,6 +94,38 @@ def build(con):
                coalesce(ib.irs_congs_bin, 0) AS irs_congregations_in_building,
                s.building_use <> 'religious building only' AS other_use
         FROM cong_sites s LEFT JOIN irs_lot il USING (bbl) LEFT JOIN irs_bin ib USING (bin)
+    """)
+    # Check homes (mailing address?) and schools (the congregation's own?).
+    checks.home_checks(con)
+    checks.school_checks(con)
+    con.execute("""
+        CREATE OR REPLACE TABLE cong_sharing AS
+        WITH r AS (
+          SELECT s.* EXCLUDE (building_use, other_use), s.building_use AS building_use_raw,
+                 h.home_check, h.home_evidence, k.school_check, k.schools_on_lot,
+                 CASE
+                   WHEN s.building_use IN ('residential', 'apartments or house with stores')
+                        AND h.home_check = 'suggests mailing' THEN 'location unknown (home looks like a mailing address)'
+                   WHEN s.building_use = 'religious building with a school on the lot' AND k.school_check = 'own school'
+                     THEN 'religious building only'
+                   WHEN s.building_use = 'religious building with a school on the lot'
+                     THEN 'religious building hosting another school'
+                   WHEN s.building_use = 'school building' AND k.school_check = 'own school'
+                     THEN 'its own school (religious complex)'
+                   WHEN s.building_use = 'school building' AND k.school_check = 'public school'
+                     THEN 'public or charter school building'
+                   WHEN s.building_use = 'school building' AND k.school_check = 'independent school'
+                     THEN 'independent private school building'
+                   WHEN s.building_use = 'school building' THEN 'school building (no school on record)'
+                   ELSE s.building_use END AS building_use
+          FROM cong_sharing_raw s
+          LEFT JOIN home_checks h USING (cong_id)
+          LEFT JOIN school_checks k USING (cong_id)
+        )
+        SELECT *, building_use NOT IN ('religious building only', 'its own school (religious complex)',
+                                       'location unknown (home looks like a mailing address)') AS other_use,
+               building_use LIKE 'location unknown%' AS location_unknown
+        FROM r
     """)
 
 
@@ -146,18 +179,46 @@ def analysis(con) -> str:
 
     # ---- 2. building also used for other purposes
     w("\n## 2. Congregations in a building also used for something else\n")
-    o = one("SELECT count(*) FILTER (WHERE other_use), count(*) FILTER (WHERE other_use AND irs_on_same_lot) "
-            "FROM cong_sharing WHERE headline")
+    o = one("""SELECT count(*) FILTER (WHERE other_use), count(*) FILTER (WHERE other_use AND irs_on_same_lot),
+                      count(*) FILTER (WHERE location_unknown),
+                      count(*) FILTER (WHERE other_use AND home_check = 'unconfirmed')
+               FROM cong_sharing WHERE headline""")
     w(f"{o[0]:,} congregations ({pct(o[0])}) gather on a lot whose building is not a "
-      f"religious building alone. For {o[1]:,} of them the IRS registration is on the same "
-      "lot, which corroborates that the congregation is based there. By building type "
-      "(DOF building class, plus NCES schools on the lot):\n")
+      f"religious building or its own school. For {o[1]:,} of them the IRS registration is "
+      f"on the same lot, which corroborates that the congregation is based there. "
+      f"{o[3]:,} of the {o[0]:,} are homes with no evidence either way (see the check "
+      f"below). {o[2]:,} more are set aside as location unknown, because their home address "
+      "looks like a mailing address. By building type (DOF building class, NCES schools on "
+      "the lot, and the checks below):\n")
     w(md_table(q(f"""
         SELECT building_use, count(*) AS congregations,
                round(100 * count(*) / {n}, 1) AS pct,
                count(*) FILTER (WHERE others_headline >= 1) AS also_shared_with_other_congregations,
                count(*) FILTER (WHERE irs_on_same_lot) AS irs_registered_on_lot
         FROM cong_sharing WHERE headline GROUP BY 1 ORDER BY 2 DESC
+    """)))
+
+    w("\n### Checking homes: gathering place or mailing address?\n")
+    w("Congregations on residential lots (houses, apartment buildings, and apartments over "
+      "stores). Evidence from OpenStreetMap, the listing address, the IRS registration and "
+      "the crawled website text; strongest first. \"Suggests mailing\" cases are moved to "
+      "\"location unknown\" above.\n")
+    w(md_table(q("""
+        SELECT h.home_check, h.home_evidence, count(*) AS congregations,
+               count(*) FILTER (WHERE s.building_use_raw = 'residential') AS residential,
+               count(*) FILTER (WHERE s.building_use_raw = 'apartments or house with stores') AS with_stores
+        FROM home_checks h JOIN cong_sharing s USING (cong_id)
+        WHERE s.headline GROUP BY 1, 2 ORDER BY 1 DESC, 3 DESC
+    """)))
+    w("\n### Checking schools: the congregation's own, or another body's?\n")
+    w("Congregations on a lot holding an NCES school. Own school: the school's name matches "
+      "the congregation's, or a Catholic parish with a Catholic-named school on a "
+      "Catholic-owned lot. Public and independent schools (including independent religious "
+      "schools) count as other use; own schools do not.\n")
+    w(md_table(q("""
+        SELECT k.school_check, s.building_use_raw AS lot_building, count(*) AS congregations
+        FROM school_checks k JOIN cong_sharing s USING (cong_id)
+        WHERE s.headline GROUP BY 1, 2 ORDER BY 1, 3 DESC
     """)))
 
     # ---- both
