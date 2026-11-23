@@ -1,16 +1,16 @@
-# Version 0, step 1: NYC inputs loaded
+# Version 0, step 1: New York City inputs loaded
 
-Run 2026-11-23. Overture release 2026-11-18.0; PLUTO 26v2; NCES public 2024-25 and private 2023-24. Stop here for a sanity check before step 2.
+Run 2026-11-23. Overture release 2026-11-18.0; parcels 26v2; NCES public 2024-25 and private 2023-24. Stop here for a sanity check before step 2.
 
 ## Inputs
 
 | input | rows | note |
 | --- | --- | --- |
-| Overture places, kept categories | 9522 | inside the five boroughs |
-| Borough boundaries (water included) | 5 | NYC Open Data wh2p-dxnf |
-| DOF tax-lot polygons | 858020 | NYC Open Data i38t-6if2 |
-| PLUTO lots | 858284 | NYC Open Data 64uk-42ks |
-| Lot polygons with a PLUTO match on BBL | 845560 | 98.5% of polygons |
+| Overture places, kept categories | 9522 | inside the city |
+| Borough boundaries | 5 | NYC Open Data wh2p-dxnf, water included |
+| Parcel polygons | 858020 | DOF tax lots, NYC Open Data i38t-6if2 |
+| Parcel records | 858284 | PLUTO, NYC Open Data 64uk-42ks |
+| Polygons with a parcel record | 845560 | 98.5% of polygons |
 | NCES public schools | 1885 | EDGE 2024-25 |
 | NCES private schools | 539 | EDGE 2023-24 |
 
@@ -39,7 +39,7 @@ Overture's confidence that the place exists. Low bands are candidates for a cuto
 | c. 0.70-0.89 | 1151 | 4 |
 | d. 0.90 and up | 6124 | 4 |
 
-50 places sit inside the boroughs but list a ZIP code outside NYC, a sign the point or the address is wrong.
+50 places sit inside the city but list a ZIP code outside NYC, a sign the point or the address is wrong.
 
 
 ## Overture: category by borough
@@ -76,9 +76,9 @@ Overture's confidence that the place exists. Low bands are candidates for a cuto
 | seminary | religious_organization | 6 |
 | lutheran_place_of_worship | christian_place_of_worship | 5 |
 | monastery | religious_organization | 4 |
+| greek_orthodox_place_of_worship | christian_place_of_worship | 1 |
 | eastern_orthodox_place_of_worship | christian_place_of_worship | 1 |
 | russian_orthodox_place_of_worship | christian_place_of_worship | 1 |
-| greek_orthodox_place_of_worship | christian_place_of_worship | 1 |
 
 ## Overture: operating status and source datasets
 
@@ -130,7 +130,7 @@ Overture's confidence that the place exists. Low bands are candidates for a cuto
 | QTEC Community Center | religious_organization | Queens | 40-32 166th St | http://www.qtecny.org/#!connect/czpl | 0.91 | open |
 | Tabernacle Of Grace Int. | christian_place_of_worship | Queens | 220-07 Merrick Blvd |  | 0.92 | open |
 
-## Parcels: religious building classes (PLUTO)
+## Parcels: religious building classes
 
 | bldgclass | label | lots | owner_type_x | bldg_area_sqft |
 | --- | --- | --- | --- | --- |
