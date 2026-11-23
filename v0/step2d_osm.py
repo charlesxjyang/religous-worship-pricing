@@ -24,7 +24,7 @@ RELIGIOUS_CLASSES = ("church", "chapel", "cathedral", "mosque", "synagogue", "te
 
 def main():
     release = config.OVERTURE_RELEASE or latest_overture_release()
-    path = config.RAW / f"overture_buildings_religious_{release}_nyc.parquet"
+    path = config.RAW / f"overture_buildings_religious_{release}_{config.CITY}.parquet"
     con = connect(config.DB_PATH)
     if not path.exists():
         b = config.NYC_BBOX

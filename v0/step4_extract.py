@@ -116,7 +116,7 @@ services: regular services only, each with a stated day and start time. Do not i
 
 shares_space_with: other congregations the site says use the same building, either hosted by this one or hosting it.
 
-Every evidence field must be a short quote, under 30 words, copied exactly from the page text, that shows the fact. Choose quotes that do not name clergy or other individuals where the page allows, and never put a person's name or a personal email or phone in any other field. If nothing on the pages shows a fact, leave it out (or null) rather than guess."""
+Every evidence field must be a short quote, under 30 words, copied exactly from the page text, that shows the fact. Choose quotes that do not name clergy or other individuals where the page allows, and never put a person's name or a personal email or phone in any other field. If nothing on the pages shows a fact, leave it out (or null) rather than guess.""".replace("New York City", config.CITY_NAME)
 
 
 def load_site_text(site: dict) -> tuple[str, bool]:

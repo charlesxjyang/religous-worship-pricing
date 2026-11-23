@@ -1,6 +1,6 @@
 """Version 0, step 4c (NYC): load extractions and geocode gathering places.
 
-Reads data/nyc/interim/extract/*.json into tables, then finds the tax lot of
+Reads data/<city>/interim/extract/*.json into tables, then finds the tax lot of
 each gathering place:
 - a street address goes to NYC Planning Labs GeoSearch, which returns BBL and
   BIN (no key needed); addresses outside NYC are skipped, not forced into it;
@@ -12,21 +12,15 @@ Run after step 4b:  .venv/bin/python v0/step4_geocode.py
 
 import json
 import re
-import time
-import urllib.parse
-import urllib.request
+import threading
 
 import config
-from common import connect, user_agent
+from common import assign_lots, connect, make_geocoder
 
 EXTRACT_DIR = config.DATA / "interim" / "extract"
 CACHE = config.DATA / "interim" / "geosearch_cache.json"
-GEOSEARCH = "https://geosearch.planninglabs.nyc/v2/search"
 MIN_CONFIDENCE = 0.8
-NYC_ZIP3 = {"100", "101", "102", "103", "104", "110", "111", "112", "113", "114", "116"}
-NYC_PLACE_RE = re.compile(
-    r"\b(new york|nyc|manhattan|brooklyn|bronx|queens|staten island|flushing|jamaica|"
-    r"astoria|harlem|ny)\b", re.I)
+CITY_ZIP_RE = re.compile(r"\b(" + "|".join(config.ZIP3) + r")\d{2}\b")
 STATE_RE = re.compile(r",?\s+\b(A[LKZR]|C[AOT]|D[EC]|FL|GA|HI|I[DLNA]|K[SY]|LA|M[EDAINSOT]|"
                       r"N[EVHJMCD]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[TA]|W[AVIY])\b\s*\d{5}")
 SCHOOL_NO_RE = re.compile(r"\b(P\.?\s?S|I\.?\s?S|J\.?\s?H\.?\s?S|M\.?\s?S|H\.?\s?S)\.?\s*(\d{1,3})\b", re.I)
@@ -70,45 +64,19 @@ def load_extractions(con):
           f"{len(svcs):,} services, {len(shares):,} space-sharing mentions")
 
 
-def outside_nyc(address: str) -> bool:
+def outside_city(address: str) -> bool:
     z = re.findall(r"\b(\d{5})(?:-\d{4})?\b", address)
-    if z and z[-1][:3] not in NYC_ZIP3:
+    if z and z[-1][:3] not in config.ZIP3:
         return True
     m = STATE_RE.search(address)
-    return bool(m and m.group(1).upper() != "NY")
-
-
-def geosearch(text: str, cache: dict) -> dict | None:
-    if text in cache:
-        return cache[text]
-    url = GEOSEARCH + "?" + urllib.parse.urlencode({"text": text, "size": 1})
-    req = urllib.request.Request(url, headers={"User-Agent": user_agent()})
-    hit = None
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                feats = json.load(r).get("features", [])
-            if feats:
-                f = feats[0]
-                p = f["properties"]
-                pad = p.get("addendum", {}).get("pad", {})
-                hit = {"label": p.get("label"), "confidence": p.get("confidence"),
-                       "match_type": p.get("match_type"), "borough": p.get("borough"),
-                       "bbl": pad.get("bbl"), "bin": pad.get("bin"),
-                       "lon": f["geometry"]["coordinates"][0], "lat": f["geometry"]["coordinates"][1]}
-            break
-        except Exception as e:
-            print(f"  geosearch retry {attempt + 1}: {e!r}")
-            time.sleep(2 ** attempt)
-    cache[text] = hit
-    time.sleep(0.2)
-    return hit
+    return bool(m and m.group(1).upper() != config.STATE)
 
 
 def main():
     con = connect(config.DB_PATH)
     load_extractions(con)
     cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
+    geo, lock = make_geocoder(con), threading.Lock()
 
     # Each gathering place, with the borough of the listing that points to it.
     rows = con.execute("""
@@ -126,21 +94,24 @@ def main():
     out = []
     for key, lid, address, venue, kind, boro in rows:
         rec = dict(site_key=key, location_id=lid, query=None, method="none", outside_nyc=False,
-                   label=None, confidence=None, match_type=None, bbl=None, bin=None, lat=None, lon=None)
+                   label=None, confidence=None, match_type=None, bbl=None, bin=None, lat=None, lon=None,
+                   gkey=f"{key}:{lid}")
         if kind in ("online_only",):
             out.append(rec)
             continue
         if address and re.search(r"\d", address):
-            if outside_nyc(address):
-                rec["outside_nyc"] = True
+            if outside_city(address):
+                rec["outside_nyc"] = True      # column name kept; means outside this city
             else:
-                q = address if NYC_PLACE_RE.search(address) or re.search(r"\b1\d{4}\b", address) \
-                    else f"{address}, {boro}"
+                hint = boro if config.CITY == "nyc" else f"Washington, {config.STATE}"
+                q = address if config.PLACE_RE.search(address) or CITY_ZIP_RE.search(address) \
+                    else f"{address}, {hint}"
                 rec["query"] = q
-                hit = geosearch(q, cache)
-                if hit and (hit["confidence"] or 0) >= MIN_CONFIDENCE and hit["bbl"]:
-                    rec |= {k: hit[k] for k in ("label", "confidence", "match_type", "bin", "lat", "lon")}
-                    rec |= {"bbl": int(hit["bbl"]), "method": "geosearch"}
+                hit = geo(q, cache, lock)
+                if hit and (hit.get("confidence") or 0) >= MIN_CONFIDENCE and (hit.get("bbl") or hit.get("lat")):
+                    rec |= {k: hit.get(k) for k in ("label", "confidence", "match_type", "bin", "lat", "lon")}
+                    rec |= {"bbl": int(hit["bbl"]) if hit.get("bbl") else None,
+                            "method": hit.get("method", "geosearch")}
         if rec["method"] == "none" and kind == "public_school":
             m = SCHOOL_NO_RE.search(f"{venue or ''} {address or ''}")
             if m:
@@ -155,11 +126,12 @@ def main():
 
     con.execute("""CREATE OR REPLACE TABLE gathering_geo (site_key VARCHAR, location_id INT,
         query VARCHAR, method VARCHAR, outside_nyc BOOLEAN, label VARCHAR, confidence DOUBLE,
-        match_type VARCHAR, bbl BIGINT, bin VARCHAR, lat DOUBLE, lon DOUBLE)""")
+        match_type VARCHAR, bbl BIGINT, bin VARCHAR, lat DOUBLE, lon DOUBLE, gkey VARCHAR)""")
     if out:
         cols = list(out[0])
         con.executemany(f"INSERT INTO gathering_geo VALUES ({', '.join('?' * len(cols))})",
                         [[r[c] for c in cols] for r in out])
+    assign_lots(con, "gathering_geo", "gkey")   # points without a parcel (DC's Census fallback)
     print(con.execute("""SELECT method, outside_nyc, count(*) AS places FROM gathering_geo
                          GROUP BY ALL ORDER BY 3 DESC""").df().to_string(index=False))
 

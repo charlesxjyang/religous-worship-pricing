@@ -85,12 +85,12 @@ The plan's price signal sits in the three cells other than "religious building o
 
 | tradition | congregations | pct_sharing | pct_other_use_building | pct_either |
 | --- | --- | --- | --- | --- |
-| Protestant and other Christian | 5292 | 24.0 | 41.0 | 57.0 |
-| Jewish | 512 | 14.0 | 35.0 | 45.0 |
-| Unknown | 449 | 25.0 | 49.0 | 65.0 |
-| Catholic | 414 | 12.0 | 22.0 | 31.0 |
-| Muslim | 235 | 11.0 | 53.0 | 60.0 |
-| Hindu | 101 | 5.0 | 59.0 | 59.0 |
+| Protestant and other Christian | 5279 | 24.0 | 41.0 | 57.0 |
+| Jewish | 510 | 14.0 | 35.0 | 45.0 |
+| Unknown | 458 | 26.0 | 48.0 | 64.0 |
+| Catholic | 419 | 11.0 | 22.0 | 32.0 |
+| Muslim | 235 | 11.0 | 54.0 | 60.0 |
+| Hindu | 102 | 6.0 | 59.0 | 59.0 |
 | Buddhist | 86 | 14.0 | 52.0 | 56.0 |
 
 Tradition comes from the Overture category; "Unknown" is mostly Overture's generic categories. Website extraction will fill many of these in.

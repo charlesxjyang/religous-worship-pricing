@@ -19,6 +19,8 @@ ZIP code, never citywide.
 import re
 import unicodedata
 
+import config
+
 ABBREV = {
     "st": "saint", "sts": "saints", "ste": "sainte", "san": "saint", "santa": "saint",
     "rc": "roman catholic", "ch": "church", "chr": "church", "chs": "church",
@@ -51,6 +53,8 @@ ny nyc new york city brooklyn bronx queens manhattan staten island usa america
 iglesia parish chapel community society association shul synagogue minyan
 cathedral tabernacle mission missionary sanctuary
 """.split())
+if config.CITY == "dc":
+    KIND |= {"washington", "dc", "district", "columbia", "nw", "ne", "sw", "se"}
 DENOM = set("""
 baptist methodist presbyterian lutheran episcopal anglican pentecostal catholic
 roman orthodox greek russian ukrainian coptic armenian adventist seventh day

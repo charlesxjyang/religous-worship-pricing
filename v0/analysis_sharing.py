@@ -26,7 +26,7 @@ from common import connect
 from step1_load import md_table
 
 OUT = config.REPORT_DIR / "analysis_sharing.md"
-CSV = config.PRIVATE_DIR / "nyc_congregation_sites.csv"
+CSV = config.PRIVATE_DIR / f"{config.CITY}_congregation_sites.csv"
 
 USE_GROUP = """
     CASE
@@ -56,7 +56,8 @@ def build(con):
                  any_value(gathering_bin) AS bin,
                  any_value(listing_lot_method) AS lot_method,
                  any_value(boroname) AS borough,
-                 mode(tradition) AS tradition,
+                 -- a known tradition beats Unknown; ties go to the most confident listing
+                 first(tradition ORDER BY tradition IN ('Unknown', 'Other'), confidence DESC, id) AS tradition,
                  count(*) AS listings,
                  string_agg(DISTINCT name, ' | ') AS names,
                  max(confidence) AS confidence,
@@ -138,7 +139,7 @@ def analysis(con) -> str:
     w = out.append
     n, n_web = one("SELECT count(*), count(*) FILTER (WHERE from_website) FROM cong_sharing WHERE headline")
 
-    w("# Shared and multi-use worship space in NYC: first pass\n")
+    w(f"# Shared and multi-use worship space in {config.CITY_SHORT}: first pass\n")
     w(f"Run {dt.date.today().isoformat()}. {n:,} congregations (after merging duplicate "
       "listings), each placed on the tax lot where it gathers. "
       + (f"For {n_web:,} the lot comes from the congregation's own website; for the rest it is "
@@ -249,7 +250,7 @@ def analysis(con) -> str:
     """)))
     w("\nTradition comes from the Overture category; \"Unknown\" is mostly Overture's generic "
       "categories. Website extraction will fill many of these in.\n")
-    w("## By borough\n")
+    w(f"## By {config.AREA_LABEL}\n")
     w(md_table(q("""
         SELECT borough, count(*) AS congregations,
                round(100 * avg((others_headline >= 1)::INT), 0) AS pct_sharing,

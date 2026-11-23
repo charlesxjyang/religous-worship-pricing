@@ -22,6 +22,10 @@ NOT_WORSHIP_OWNER = r"\b(YESHIVA|TALMUD|MESIVTA|KOLLEL|ACADEMY|SCHOOL|MEDICAL|HO
 def main():
     con = connect(config.DB_PATH)
     deg = NEAR_M / 80_000
+    # NYC's BBL starts with the borough number; elsewhere, find the area spatially.
+    area_join = ("LEFT JOIN boroughs b ON b.borocode = CAST(left(CAST(w.bbl AS VARCHAR), 1) AS INT)"
+                 if config.CITY == "nyc" else
+                 "LEFT JOIN boroughs b ON ST_Contains(b.geom, ST_Centroid(w.geom))")
     con.execute(f"""
         CREATE OR REPLACE TABLE recall_lots AS
         WITH worship_lots AS (
@@ -51,10 +55,10 @@ def main():
         FROM worship_lots w
         LEFT JOIN on_lot o USING (bbl)
         LEFT JOIN near n USING (bbl)
-        LEFT JOIN boroughs b ON b.borocode = CAST(left(CAST(w.bbl AS VARCHAR), 1) AS INT)
+        {area_join}
     """)
     config.PRIVATE_DIR.mkdir(parents=True, exist_ok=True)
-    out = config.PRIVATE_DIR / "nyc_recall_misses.csv"
+    out = config.PRIVATE_DIR / f"{config.CITY}_recall_misses.csv"
     con.execute(f"""
         COPY (SELECT * EXCLUDE (places_on_lot) FROM recall_lots
               WHERE places_within_{NEAR_M}m = 0 ORDER BY boroname, bbl)

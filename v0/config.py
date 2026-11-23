@@ -1,27 +1,68 @@
-"""Version 0 settings for New York City.
+"""Settings, per city. Pick the city with the CITY environment variable:
 
-The plan (docs/plan.md) writes Version 0 for Richmond. This repo runs it in NYC,
-with NYC equivalents for each Richmond input:
+    .venv/bin/python v0/step1_load.py              # New York City (default)
+    CITY=dc .venv/bin/python v0/step1_load.py      # Washington, DC
 
-  Richmond input                   NYC input used here
-  -------------------------------  ---------------------------------------------
-  Census place boundary (51760)    DCP borough boundaries, water included
-  Assessor parcels (owner, use,    PLUTO 26v2 attributes (owner, building class,
-    exemption code)                  land use, exempt value) joined by BBL to
-                                     DOF Digital Tax Map lot polygons
-  NCES public + private schools    the same NCES EDGE files, clipped to NYC
+The plan (docs/plan.md) writes Version 0 for Richmond. Inputs per city:
+
+  Plan's input                    NYC                                  Washington, DC
+  ------------------------------  -----------------------------------  ------------------------------------
+  City boundary, subareas         DCP borough boundaries               DC wards (2022), DCGIS
+  Parcels: owner, use, exemption  PLUTO 26v2 + DOF tax-lot polygons    OTR owner polygons (ITSPE), use codes,
+                                                                       tax-exempt property (RPTA)
+  Address geocoder                NYC Planning Labs GeoSearch (BBL,    US Census geocoder, then the parcel
+                                  BIN)                                 under the point
+  Schools, IRS, Overture, OSM     same sources, clipped to the city    same sources, clipped to the city
+
+Downstream steps read city-neutral columns: `bbl` is the parcel key (NYC's
+BBL; a surrogate number in DC, with the real SSL kept alongside) and
+`bldgclass` is NYC's DOF building class, or DC's use code mapped onto it
+(v0/dc.py), so the same building-type groups apply in both cities.
 """
 
+import os
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CITY = "nyc"
+CITY = os.environ.get("CITY", "nyc").lower()
+
+CITIES = {
+    "nyc": dict(
+        name="New York City", short="NYC", state="NY", area_label="borough",
+        bbox=dict(xmin=-74.2591, xmax=-73.7004, ymin=40.4774, ymax=40.9176),
+        zip3=("100", "101", "102", "103", "104", "110", "111", "112", "113", "114", "116"),
+        place_re=r"\b(new york|nyc|manhattan|brooklyn|bronx|queens|staten island|flushing|"
+                 r"jamaica|astoria|harlem|ny)\b",
+        geocoder="geosearch", irs_file="eo_ny.csv",
+        report_dir=ROOT / "v0", db_name="nyc_v0.duckdb",
+    ),
+    "dc": dict(
+        name="Washington, DC", short="DC", state="DC", area_label="ward",
+        bbox=dict(xmin=-77.1199, xmax=-76.9094, ymin=38.7916, ymax=38.9955),
+        zip3=("200", "202", "203", "204", "205"),
+        place_re=r"\b(washington|d\.?c\.?|district of columbia)\b",
+        geocoder="census", irs_file="eo_dc.csv",
+        report_dir=ROOT / "v0" / "dc", db_name="dc_v0.duckdb",
+    ),
+}
+if CITY not in CITIES:
+    raise SystemExit(f"unknown CITY={CITY!r}; choose from {sorted(CITIES)}")
+C = CITIES[CITY]
+CITY_NAME, CITY_SHORT, STATE, AREA_LABEL = C["name"], C["short"], C["state"], C["area_label"]
+BBOX = C["bbox"]
+NYC_BBOX = BBOX  # older name, kept for scripts that still use it
+ZIP3 = C["zip3"]
+PLACE_RE = re.compile(C["place_re"], re.I)
+GEOCODER = C["geocoder"]
+IRS_FILE = C["irs_file"]
+
 DATA = ROOT / "data" / CITY
 RAW = DATA / "raw"
-DB_PATH = DATA / "nyc_v0.duckdb"
-REPORT_DIR = ROOT / "v0"
+DB_PATH = DATA / C["db_name"]
+REPORT_DIR = C["report_dir"]
 # Point-level outputs (names, addresses, lots). The repo is public and the plan
-# publishes aggregates only, so this folder is gitignored.
+# publishes aggregates only, so these folders are gitignored.
 PRIVATE_DIR = REPORT_DIR / "private"
 
 # --- Overture Maps places -------------------------------------------------
@@ -41,10 +82,6 @@ KEEP_CATEGORIES = [
     "religious_organization",
 ]
 
-# Rough NYC bounding box, used only to prune the S3 scan before the exact
-# boundary test.
-NYC_BBOX = dict(xmin=-74.2591, xmax=-73.7004, ymin=40.4774, ymax=40.9176)
-
 # --- NYC Open Data (Socrata) ---------------------------------------------
 SOCRATA = "https://data.cityofnewyork.us"
 BOROUGHS_DATASET = "wh2p-dxnf"   # Borough Boundaries (water areas included), DCP
@@ -61,6 +98,12 @@ PLUTO_COLUMNS = [
 ]
 TAXLOT_COLUMNS = ["bbl", "boro", "block", "lot", "condo_flag", "the_geom"]
 SOCRATA_PAGE = 100_000
+
+# --- DC GIS (ArcGIS REST) ----------------------------------------------------
+DCGIS = "https://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA"
+DC_OWNER_POLYGONS = f"{DCGIS}/Property_and_Land_WebMercator/MapServer/40"
+DC_TAX_EXEMPT = f"{DCGIS}/Property_and_Land_WebMercator/MapServer/70"
+DC_USECODES = f"{DCGIS}/Property_and_Land_WebMercator/MapServer/54"
 
 # --- NCES EDGE school locations ------------------------------------------
 NCES_BASE = "https://nces.ed.gov/programs/edge/data"
