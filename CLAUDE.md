@@ -41,9 +41,18 @@ Status:
   (run `--estimate`, then `--limit 50` as a pilot, then all).
 - [ ] Step 4c–6: rerun after 4b. Until then they run on listing lots only.
 - [ ] Charles checks the 50 rows.
+- [x] Cross-checks (Charles, 2026-11-23: "add other deconflict strategies, e.g.
+  IRS"): step 2c loads IRS EO BMF religious organizations and geocodes them;
+  step 2d loads OSM religious buildings; step 5 merges listings on a lot by
+  website, phone, `names.names_match` and IRS EIN, and grades each "shared"
+  flag (`shared_evidence`).
+- Scope (Charles, 2026-11-23): NYC plus about two other cities to start.
+  Which two is open.
 
 ```bash
 .venv/bin/python v0/step2_parcels.py
+.venv/bin/python v0/step2c_irs.py      # IRS registrations, geocoded (about 30 min)
+.venv/bin/python v0/step2d_osm.py      # OSM religious buildings via Overture
 .venv/bin/python v0/step3_recall.py
 .venv/bin/python v0/step4_crawl.py
 .venv/bin/python v0/step4_extract.py --estimate
@@ -69,6 +78,14 @@ Only one process can open `data/nyc/nyc_v0.duckdb` at a time; run steps in order
   distinct websites. Run `step4_extract.py --estimate` before a full run.
 - Many Overture websites belong to a namesake elsewhere (a Norfolk, VA church
   for a Bronx listing). Extraction reports `site_match`; "no" sites are ignored.
+- IRS addresses are registered addresses (offices, PO boxes, pastors'
+  apartments). Use them to tell who a listing is and to find missed
+  congregations, never as the gathering place. The "in care of" field names
+  people and is not stored.
+- Overpass (OSM's API) is unreachable from cloud sessions; OSM building tags
+  come from Overture's buildings theme instead (source "OpenStreetMap" only).
+- `v0/names.py` holds the name matcher; run it to see its test cases. Use it
+  only within one lot or ZIP code, never citywide.
 
 ## Environment
 

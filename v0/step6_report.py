@@ -47,12 +47,103 @@ def build_table(con):
                c.colocation, c.colocation_reason, c.n_congregations_on_lot, c.names_on_lot,
                c.bldgclass AS lot_bldgclass, c.landuse_label AS lot_landuse, c.ownername AS lot_owner,
                c.religious_owned AS lot_religious_owned, c.school_names AS schools_on_lot,
+               c.shared_evidence, c.ein AS irs_ein, c.irs_name, c.irs_kind, c.irs_match_basis,
+               c.n_irs_congregations_on_lot, c.osm_religious_buildings_on_lot, c.osm_classes,
                g.online_only, round(g.confidence, 2) AS overture_confidence, g.operating_status
         FROM place_gathering g
         JOIN place_colocation c USING (id)
         LEFT JOIN place_services s USING (id)
         LEFT JOIN home h USING (site_key)
     """)
+
+
+def chapman(n1, n2, m):
+    """Chapman's capture-recapture estimate of a population seen by two lists."""
+    return (n1 + 1) * (n2 + 1) / (m + 1) - 1
+
+
+def cross_checks(con, w, q, one):
+    """Deconfliction: what IRS records, OSM buildings and merge rules change."""
+    w("\n## Cross-checks across sources\n")
+    w("Four sources describe the same places independently: Overture listings, tax-lot "
+      "records (building class and owner), OpenStreetMap religious buildings, and IRS "
+      "registrations. IRS addresses are registered addresses (often an office, PO box or "
+      "pastor's apartment), so they confirm *who* a listing is, not where it gathers.\n")
+
+    w("### Duplicate listings or real sharing\n")
+    w("Lots where two or more congregations seem to gather, as each merge rule is added:\n")
+    w(md_table(q("SELECT merge_keys, congregations, lots_with_2plus, congregations_on_those_lots "
+                 "FROM dedupe_stages ORDER BY stage")))
+    w("\nEvidence behind each \"shared\" flag after merging:\n")
+    w(md_table(q("""
+        SELECT shared_evidence, count(*) AS places, count(DISTINCT gathering_bbl) AS lots
+        FROM v0_nyc WHERE colocation = 'shared' GROUP BY 1 ORDER BY 2 DESC
+    """)))
+
+    n_irs = one("SELECT count(*) FROM irs_orgs")[0]
+    if n_irs:
+        w("\n### IRS registrations\n")
+        w(md_table(q("""
+            SELECT kind, count(*) AS orgs,
+                   count(*) FILTER (WHERE po_box) AS po_box,
+                   count(*) FILTER (WHERE street_unit IS NOT NULL) AS apartment_or_suite,
+                   count(*) FILTER (WHERE bbl IS NOT NULL) AS placed_on_a_lot
+            FROM irs_orgs GROUP BY 1 ORDER BY 2 DESC
+        """)))
+        w("\nOverture listings matched to an IRS registration (same lot, or a unique name "
+          "match in the same ZIP code):\n")
+        w(md_table(q("""
+            SELECT tradition, count(*) AS places,
+                   count(*) FILTER (WHERE irs_ein IS NOT NULL) AS matched,
+                   round(100 * avg((irs_ein IS NOT NULL)::INT)) AS pct_matched,
+                   count(*) FILTER (WHERE irs_match_basis = 'lot') AS on_same_lot,
+                   count(*) FILTER (WHERE irs_kind IN ('school', 'support')) AS matched_school_or_support
+            FROM v0_nyc GROUP BY 1 ORDER BY 2 DESC
+        """)))
+        w("\nIRS congregations that no Overture listing matched, by the lot of their "
+          "registered address. Those registered on another body's religious lot, a school or "
+          "a commercial lot are candidate renters and guests:\n")
+        w(md_table(q("""
+            SELECT lot_type, count(*) AS congregations,
+                   count(*) FILTER (WHERE lot_has_listing) AS lot_has_an_overture_listing,
+                   count(*) FILTER (WHERE ruling_year >= '2010') AS registered_since_2010
+            FROM irs_only GROUP BY 1 ORDER BY 2 DESC
+        """)))
+
+    w("\n### Agreement at the lot level\n")
+    w("Lots named by each source. Worship lot = building class M1/M9, or a religious owner "
+      "with institutional use (the step 3 definition).\n")
+    w(md_table(q("""
+        WITH o AS (SELECT DISTINCT gathering_bbl AS bbl FROM v0_nyc WHERE gathering_bbl IS NOT NULL),
+             p AS (SELECT bbl FROM recall_lots),
+             m AS (SELECT bbl FROM osm_lot_flags),
+             i AS (SELECT DISTINCT bbl FROM irs_orgs WHERE kind = 'congregation' AND bbl IS NOT NULL),
+             u AS (SELECT bbl FROM o UNION SELECT bbl FROM p UNION SELECT bbl FROM m UNION SELECT bbl FROM i)
+        SELECT (bbl IN (SELECT bbl FROM o))::INT AS overture, (bbl IN (SELECT bbl FROM p))::INT AS worship_lot,
+               (bbl IN (SELECT bbl FROM m))::INT AS osm_building, (bbl IN (SELECT bbl FROM i))::INT AS irs,
+               count(*) AS lots
+        FROM u GROUP BY ALL ORDER BY lots DESC LIMIT 12
+    """)))
+
+    # Rough sizes. Both pairs violate the method's assumptions (the lists are
+    # not independent, and IRS keeps closed churches), so treat as indicative.
+    rows = []
+    n1 = one("SELECT count(DISTINCT cong_id) FROM place_cong")[0]
+    if n_irs:
+        n2 = one("SELECT count(*) FROM irs_orgs WHERE kind = 'congregation'")[0]
+        m = one("""SELECT count(DISTINCT c.cong_id) FROM place_cong c JOIN place_irs i USING (id)
+                   WHERE i.irs_kind = 'congregation'""")[0]
+        rows.append(("Congregations: Overture x IRS", n1, n2, m, round(chapman(n1, n2, m))))
+    o_lots = one("SELECT count(DISTINCT gathering_bbl) FROM v0_nyc")[0]
+    m_lots = one("SELECT count(*) FROM osm_lot_flags")[0]
+    om = one("SELECT count(*) FROM osm_lot_flags WHERE bbl IN (SELECT gathering_bbl FROM v0_nyc)")[0]
+    if m_lots:
+        rows.append(("Lots: Overture x OSM buildings", o_lots, m_lots, om, round(chapman(o_lots, m_lots, om))))
+    if rows:
+        import pandas as pd
+        w("\nCapture-recapture (Chapman). The lists are not independent and IRS keeps closed "
+          "churches on file, so these are rough indications, not counts:\n")
+        w(md_table(pd.DataFrame(rows, columns=["pair", "list_1", "list_2", "in_both", "estimated_total"])))
 
 
 def report(con) -> str:
@@ -149,6 +240,8 @@ def report(con) -> str:
             GROUP BY 1 ORDER BY 1
         """)))
 
+    cross_checks(con, w, q, one)
+
     w("\n## Recall check: worship lots with no Overture place\n")
     w(md_table(q("""
         SELECT why, boroname AS borough, count(*) AS lots,
@@ -166,9 +259,10 @@ def report(con) -> str:
     w("- The cloud session reaches websites only over HTTPS; sites with no HTTPS show as "
       "connection or TLS errors and would load from a normal network.")
     w("- Version 0 reads static HTML only: no JavaScript rendering, PDFs or social media.")
-    w("- Listings on one lot count as one congregation only when they share a website, a phone "
-      "number or an identical normalized name, so some \"shared\" flags are one congregation "
-      "listed twice under different names.")
+    w("- Listings on one lot count as one congregation when they share a website, a phone "
+      "number, a matching name or an IRS registration. Two names for one body with none of "
+      "these in common still show as \"shared\"; the evidence column says how strong each "
+      "flag is.")
     w("- Places with no website (about a third) can only be judged at their listing lot.")
     return "\n".join(out) + "\n"
 
