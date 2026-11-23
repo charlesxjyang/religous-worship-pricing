@@ -318,7 +318,8 @@ def main():
     report = build_report(con, release, overture_file)
     (config.REPORT_DIR / "step1_report.md").write_text(report)
     print("\n" + report)
-    print("Step 1 done. Review v0/step1_report.md before running step 2.")
+    print(f"Step 1 done. Review {(config.REPORT_DIR / 'step1_report.md').relative_to(config.ROOT)} "
+          "before running step 2.")
 
 
 if __name__ == "__main__":

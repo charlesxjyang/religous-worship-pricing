@@ -153,7 +153,8 @@ def load_parcels(con):
                NULL::DOUBLE AS unitstotal, NULL::DOUBLE AS assessland, p.assesstot,
                CASE WHEN ex.exemption_type IS NOT NULL THEN p.assesstot END AS exempttot,
                NULL::DOUBLE AS yearbuilt, NULL::DOUBLE AS latitude, NULL::DOUBLE AS longitude,
-               'ITSPE ' || coalesce(any_value(p.extract_date) OVER (), '') AS version,
+               'ITSPE ' || coalesce(strftime(epoch_ms(TRY_CAST(any_value(p.extract_date) OVER () AS BIGINT)),
+                                             '%Y-%m-%d'), '') AS version,
                p.ssl, p.u AS usecode, ex.exemption_type,
                coalesce(ex.exemption_type LIKE '%E1%', false) AS exempt_religious,
                p.mixeduse
