@@ -27,6 +27,8 @@ import config
 from common import connect
 from names import names_match
 
+MAX_SHIFT_M = 150  # trust the listing's geocoded address over its map point up to this far
+
 TRADITION_FROM_TAXONOMY = """
     CASE
       WHEN taxonomy_primary = 'roman_catholic_place_of_worship' THEN 'Catholic'
@@ -161,6 +163,7 @@ def main():
         "gathering_geo": "site_key VARCHAR, location_id INT, method VARCHAR, outside_nyc BOOLEAN, label VARCHAR, bbl BIGINT, bin VARCHAR",
         "irs_orgs": "ein VARCHAR, name VARCHAR, kind VARCHAR, bbl BIGINT, zip5 VARCHAR, street_unit VARCHAR, po_box BOOLEAN, ruling_year VARCHAR",
         "osm_lot_flags": "bbl BIGINT, osm_buildings INT, osm_classes VARCHAR, osm_names VARCHAR",
+        "listing_geo": "id VARCHAR, confidence DOUBLE, bbl BIGINT, bin VARCHAR, shift_m DOUBLE",
     }.items():  # so step 5 runs, listing-only, before any extraction exists
         con.execute(f"CREATE TABLE IF NOT EXISTS {t} ({ddl})")
 
@@ -169,7 +172,14 @@ def main():
         WITH base AS (
           SELECT p.id, p.name, p.basic_category, p.taxonomy_primary, p.boroname, p.address,
                  p.confidence, p.operating_status, ps.start_url AS website, ps.site_key,
-                 ps.social_urls, pl.bbl AS listing_bbl, pl.lot_match,
+                 ps.social_urls,
+                 -- the listing's own street address, geocoded, beats its map point
+                 CASE WHEN lg.confidence >= 0.8 AND lg.shift_m <= {MAX_SHIFT_M} THEN lg.bbl ELSE pl.bbl END AS listing_bbl,
+                 CASE WHEN lg.confidence >= 0.8 AND lg.shift_m <= {MAX_SHIFT_M} THEN lg.bin END AS listing_bin,
+                 CASE WHEN lg.confidence >= 0.8 AND lg.shift_m <= {MAX_SHIFT_M} THEN 'address'
+                      WHEN lg.confidence >= 0.8 THEN 'point (address ' || round(lg.shift_m) || ' m away)'
+                      ELSE 'point' END AS listing_lot_method,
+                 pl.lot_match,
                  es.site_match, es.stop_reason,
                  coalesce(es.site_match IN ('yes', 'likely'), false) AS site_ok,
                  {TRADITION_FROM_TAXONOMY} AS tradition_overture,
@@ -178,12 +188,13 @@ def main():
           FROM places p
           JOIN place_lot pl USING (id)
           JOIN place_site ps USING (id)
+          LEFT JOIN listing_geo lg USING (id)
           LEFT JOIN extract_sites es USING (site_key)
         ), locs AS (
           -- Gathering places from the site, best first: the one on this
           -- listing's own lot, then the site's primary, then by order given.
           SELECT b.id, l.location_id, l.address AS g_address, l.venue_name, l.venue_kind,
-                 l.evidence AS g_evidence, g.bbl AS g_bbl, g.method AS g_method, g.label AS g_label,
+                 l.evidence AS g_evidence, g.bbl AS g_bbl, g.bin AS g_bin, g.method AS g_method, g.label AS g_label,
                  g.outside_nyc,
                  row_number() OVER (PARTITION BY b.id ORDER BY
                      (g.bbl = b.listing_bbl) DESC NULLS LAST, (g.bbl IS NOT NULL) DESC,
@@ -201,6 +212,7 @@ def main():
                l.g_bbl,
                CASE WHEN l.g_bbl IS NOT NULL THEN 'website' ELSE 'listing' END AS address_basis,
                coalesce(l.g_bbl, b.listing_bbl) AS gathering_bbl,
+               CASE WHEN l.g_bbl IS NOT NULL THEN l.g_bin ELSE b.listing_bin END AS gathering_bin,
                (l.g_bbl IS NOT NULL AND l.g_bbl <> b.listing_bbl) AS gathering_differs_from_listing,
                -- Congregation identity for counting congregations per lot.
                CASE WHEN b.site_ok THEN 'site:' || b.site_key
