@@ -99,7 +99,8 @@ def assign_congregations(con):
         FROM place_gathering g JOIN places p USING (id)
         LEFT JOIN place_irs i USING (id)
         WHERE coalesce(g.operating_status, '') <> 'permanently_closed'
-          AND coalesce(g.site_match, '') <> 'no'
+          -- A website judged someone else's (site_match "no", often a namesake
+          -- in another city) is ignored through site_ok; the listing stays.
           -- its own website says it is an office, school or charity, not a congregation
           AND NOT (g.site_ok AND g.is_congregation = false)
     """).fetchall()

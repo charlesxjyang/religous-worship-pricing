@@ -249,8 +249,9 @@ def analysis(con) -> str:
                round(100 * avg((others_headline >= 1 OR other_use)::INT), 0) AS pct_either
         FROM cong_sharing WHERE headline GROUP BY 1 HAVING count(*) >= 15 ORDER BY 2 DESC
     """)))
-    w("\nTradition comes from the Overture category; \"Unknown\" is mostly Overture's generic "
-      "categories. Website extraction will fill many of these in.\n")
+    w("\nTradition comes from the congregation's own website where extraction read one, else "
+      "from the Overture category; \"Unknown\" is mostly Overture's generic categories with no "
+      "usable website.\n")
     w(f"## By {config.AREA_LABEL}\n")
     w(md_table(q(f"""
         SELECT borough AS {config.AREA_LABEL}, count(*) AS congregations,
