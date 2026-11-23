@@ -258,14 +258,20 @@ def build_report(con, release, overture_file):
         FROM overture_nyc WHERE NOT kept GROUP BY 1, 2 ORDER BY 3 DESC
     """)))
 
-    w(f"\n## Overture: 20 random places (seed {config.SAMPLE_SEED})\n")
-    w(md_table(q(f"""
+    # Sample rows name places and addresses: point-level, so they go to the
+    # gitignored private folder, not the committed report.
+    samples = md_table(q(f"""
         SELECT name, taxonomy_primary AS category, boroname AS borough, address,
                websites[1] AS website, round(confidence, 2) AS conf, operating_status AS status
         FROM (SELECT * FROM places ORDER BY id)
         USING SAMPLE reservoir(20 ROWS) REPEATABLE ({config.SAMPLE_SEED})
         ORDER BY borough, name
-    """), max_chars=45))
+    """), max_chars=45)
+    config.PRIVATE_DIR.mkdir(parents=True, exist_ok=True)
+    sample_path = config.PRIVATE_DIR / "step1_samples.md"
+    sample_path.write_text(f"# 20 random places (seed {config.SAMPLE_SEED})\n\n{samples}\n")
+    w(f"\n## Overture: 20 random places\n")
+    w(f"In `{sample_path.relative_to(config.ROOT)}` (not committed: it names places and addresses).\n")
 
     w("\n## Parcels: religious building classes\n")
     m = q("""
@@ -318,7 +324,8 @@ def main():
     report = build_report(con, release, overture_file)
     (config.REPORT_DIR / "step1_report.md").write_text(report)
     print("\n" + report)
-    print("Step 1 done. Review v0/step1_report.md before running step 2.")
+    print(f"Step 1 done. Review {(config.REPORT_DIR / 'step1_report.md').relative_to(config.ROOT)} "
+          "before running step 2.")
 
 
 if __name__ == "__main__":

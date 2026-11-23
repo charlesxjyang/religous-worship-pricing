@@ -159,20 +159,21 @@ def analysis(con) -> str:
         FROM cong_sharing WHERE headline""")
     pct = lambda x: f"{100 * x / n:.1f}%"  # noqa: E731
     w("## 1. Congregations sharing a building with other congregations\n")
-    w(md_table(q(f"""
-        SELECT * FROM (VALUES
-          ('Same tax lot as at least one other congregation', {s[0]}, '{pct(s[0])}'),
-          ('... and the IRS shows 2+ congregations registered on the lot', {s[1]}, '{pct(s[1])}'),
-          ('Same building (BIN) as at least one other congregation', {s[2]}, '{pct(s[2])}'),
-          ('... and the IRS shows 2+ registered in the building', {s[3]}, '{pct(s[3])}')
-        ) t(test, congregations, share)
-    """)))
-    w(f"\nBuilding IDs (BIN) come from geocoding the listing's street address; {s[4]:,} of "
-      f"{n:,} congregations have one, so the building rows are a floor. The lot row is an "
-      "upper bound: a congregation listed twice under unrelated names still looks like two. "
-      "The IRS-corroborated rows are closer to lower bounds, since many congregations are "
-      "registered at another address or not at all. Lots with 2+ congregations, by how many "
-      "share:\n")
+    rows = [("Same tax lot as at least one other congregation", s[0]),
+            ("... and the IRS shows 2+ congregations registered on the lot", s[1])]
+    if s[4]:  # building IDs exist (NYC's BIN); DC's records have none
+        rows += [("Same building (BIN) as at least one other congregation", s[2]),
+                 ("... and the IRS shows 2+ registered in the building", s[3])]
+    import pandas as pd
+    w(md_table(pd.DataFrame([(t, c, pct(c)) for t, c in rows], columns=["test", "congregations", "share"])))
+    bin_note = (f"Building IDs (BIN) come from geocoding the listing's street address; {s[4]:,} of "
+                f"{n:,} congregations have one, so the building rows are a floor. " if s[4] else
+                "This city's parcel records carry no building IDs, so only the lot test is "
+                "available; a lot can hold more than one building. ")
+    w("\n" + bin_note + "The lot row is an upper bound: a congregation listed twice under "
+      "unrelated names still looks like two. The IRS-corroborated rows are closer to lower "
+      "bounds, since many congregations are registered at another address or not at all. "
+      "Lots with 2+ congregations, by how many share:\n")
     w(md_table(q("""
         SELECT CASE WHEN others_headline + 1 >= 5 THEN '5 or more' ELSE (others_headline + 1)::VARCHAR END
                  AS congregations_on_lot,
@@ -251,8 +252,8 @@ def analysis(con) -> str:
     w("\nTradition comes from the Overture category; \"Unknown\" is mostly Overture's generic "
       "categories. Website extraction will fill many of these in.\n")
     w(f"## By {config.AREA_LABEL}\n")
-    w(md_table(q("""
-        SELECT borough, count(*) AS congregations,
+    w(md_table(q(f"""
+        SELECT borough AS {config.AREA_LABEL}, count(*) AS congregations,
                round(100 * avg((others_headline >= 1)::INT), 0) AS pct_sharing,
                round(100 * avg(other_use::INT), 0) AS pct_other_use_building,
                round(100 * avg((others_headline >= 1 OR other_use)::INT), 0) AS pct_either
@@ -288,7 +289,8 @@ def analysis(con) -> str:
       "them with the address where services are held.")
     w("- Building class describes the main building. A church building whose basement hosts "
       "a day care, or a store building with a church upstairs, is classed by its main use.")
-    w("- Places with no listing are missing. The IRS file holds about 9,600 registered "
+    n_irs_only = one("SELECT count(*) FROM irs_only")[0]
+    w(f"- Places with no listing are missing. The IRS file holds {n_irs_only:,} registered "
       "congregations that no listing matched, many on commercial lots or in other bodies' "
       "buildings, so the true shares of sharing and other-use space are likely higher.")
     return "\n".join(out) + "\n"

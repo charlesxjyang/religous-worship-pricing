@@ -105,30 +105,9 @@ Overture's confidence that the place exists. Low bands are candidates for a cuto
 | religious_school | place_of_learning | 177 |
 | religious_and_spiritual_goods_store | specialty_store | 59 |
 
-## Overture: 20 random places (seed 20261122)
+## Overture: 20 random places
 
-| name | category | borough | address | website | conf | status |
-| --- | --- | --- | --- | --- | --- | --- |
-| Casa De Restauracion | christian_place_of_worship | Bronx | 814 E 182nd St | http://casaderestauracionnyc.com | 0.92 | open |
-| GAN ATID | religious_organization | Bronx | 1969 Haight Ave | http://Ganatid.org/ | 0.93 | open |
-| Life Church Assembly | christian_place_of_worship | Bronx | 1595 E 174th St |  | 0.95 | open |
-| Praying Partners International Ministry | christian_place_of_worship | Bronx | 1057 E 227th St | http://prayingpartnersintl.org/ | 0.92 | open |
-| The United House of Prayer for All People | religious_organization | Bronx | 1326 Boston Rd |  | 0.99 | open |
-| Church Avenue Merchants Block Association | christian_place_of_worship | Brooklyn | 2402 Atlantic Ave | http://www.camba.org/ | 0.53 |  |
-| Cypress Hills Hispanic SDA Church | christian_place_of_worship | Brooklyn | 3427 Fulton St |  | 0.21 |  |
-| Family & Friends Worship Ctr | religious_organization | Brooklyn | 836 Quincy St |  | 0.91 |  |
-| Ocean Avenue Jewish Center | jewish_place_of_worship | Brooklyn | 2592 Ocean Ave | http://oajc.org | 0.99 | open |
-| The New Creation Church Of God | christian_place_of_worship | Brooklyn | 1228 Brooklyn Ave |  | 0.92 | open |
-| Victory Shiloh Apostolic Inc | pentecostal_place_of_worship | Brooklyn | 9617 Avenue L |  | 0.99 | open |
-| Exilic Church | christian_place_of_worship | Manhattan | 240 W 37th St Fl 2 | http://www.exilic.com/ | 0.99 | open |
-| Holy Spirit Ukrainian Catholic Cemetery | roman_catholic_place_of_worship | Manhattan | 141 Sarah Wells Trl | http://holyspirit-saintandrew.org | 0.86 | open |
-| SAJ-Judaism that Stands for All | jewish_place_of_worship | Manhattan | 15 W 86th St | https://saj.nyc/ | 1.0 | open |
-| Bridge Fellowship International | christian_place_of_worship | Queens | 45-04 48th Ave | https://www.facebook.com/BRIDGEFELLOWSHIPNY/ | 0.92 | open |
-| Harvest Revival Christian Fellowship | christian_place_of_worship | Queens | 119-33 Springfield Blvd | http://www.harvestrevival.org | 0.99 | open |
-| Immaculate Conception of Jamaica | christian_place_of_worship | Queens | 86-16 Midland Pkwy | http://www.icsalumni.org | 0.54 |  |
-| Masjid Omar Ben Abdel-Aziz | muslim_place_of_worship | Queens | 88-29 161st St | http://www.mobaatif.com/ | 0.97 | open |
-| QTEC Community Center | religious_organization | Queens | 40-32 166th St | http://www.qtecny.org/#!connect/czpl | 0.91 | open |
-| Tabernacle Of Grace Int. | christian_place_of_worship | Queens | 220-07 Merrick Blvd |  | 0.92 | open |
+In `v0/private/step1_samples.md` (not committed: it names places and addresses).
 
 ## Parcels: religious building classes
 
