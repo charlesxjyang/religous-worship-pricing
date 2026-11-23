@@ -116,7 +116,9 @@ def build(con):
                      THEN 'public or charter school building'
                    WHEN s.building_use = 'school building' AND k.school_check = 'independent school'
                      THEN 'independent private school building'
-                   WHEN s.building_use = 'school building' THEN 'school building (no school on record)'
+                   WHEN s.building_use = 'school building' AND k.school_check = 'college'
+                     THEN 'college or university building'
+                   WHEN s.building_use = 'school building' THEN 'school building, owner unrelated'
                    ELSE s.building_use END AS building_use
           FROM cong_sharing_raw s
           LEFT JOIN home_checks h USING (cong_id)
@@ -143,8 +145,8 @@ def analysis(con) -> str:
          "the Overture listing." if n_web else
          "Website extraction has not run yet, so every lot here is the Overture listing's, "
          "which is usually but not always where people gather.")
-      + " The unit is the tax lot (BBL), not the building; the single-building row below is "
-      "the stricter test.\n")
+      + " The unit is the tax lot (BBL); the same-building (BIN) rows below are the stricter "
+      "test.\n")
 
     # ---- 1. shared with other congregations
     s = one("""
@@ -161,7 +163,7 @@ def analysis(con) -> str:
           ('Same tax lot as at least one other congregation', {s[0]}, '{pct(s[0])}'),
           ('... and the IRS shows 2+ congregations registered on the lot', {s[1]}, '{pct(s[1])}'),
           ('Same building (BIN) as at least one other congregation', {s[2]}, '{pct(s[2])}'),
-          ('... and the IRS shows 2+ congregations registered in the building', {s[3]}, '{pct(s[3])}')
+          ('... and the IRS shows 2+ registered in the building', {s[3]}, '{pct(s[3])}')
         ) t(test, congregations, share)
     """)))
     w(f"\nBuilding IDs (BIN) come from geocoding the listing's street address; {s[4]:,} of "
@@ -211,10 +213,12 @@ def analysis(con) -> str:
         WHERE s.headline GROUP BY 1, 2 ORDER BY 1 DESC, 3 DESC
     """)))
     w("\n### Checking schools: the congregation's own, or another body's?\n")
-    w("Congregations on a lot holding an NCES school. Own school: the school's name matches "
-      "the congregation's, or a Catholic parish with a Catholic-named school on a "
-      "Catholic-owned lot. Public and independent schools (including independent religious "
-      "schools) count as other use; own schools do not.\n")
+    w("Congregations on a lot holding an NCES school, or in a school-class building. Own "
+      "school: the school carries the congregation's name; or a Catholic parish with a "
+      "Catholic-named school on Catholic-owned land; or, for a school building with no NCES "
+      "record, the congregation owns it or it is a parochial school (class W2) on religious "
+      "land. Public, charter and independent schools (independent religious schools "
+      "included) count as other use; own schools do not.\n")
     w(md_table(q("""
         SELECT k.school_check, s.building_use_raw AS lot_building, count(*) AS congregations
         FROM school_checks k JOIN cong_sharing s USING (cong_id)

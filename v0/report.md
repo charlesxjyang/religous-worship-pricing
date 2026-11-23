@@ -21,23 +21,23 @@ Run 2026-11-23. 9,522 Overture places in the seven worship categories. Colocatio
 
 | tradition | school | shared | commercial | single-use | unknown |
 | --- | --- | --- | --- | --- | --- |
-| Buddhist | 1 | 14 | 23 | 44 | 17 |
-| Catholic | 91 | 82 | 10 | 252 | 43 |
-| Hindu | 0 | 11 | 24 | 40 | 40 |
-| Jewish | 31 | 80 | 66 | 280 | 107 |
-| Muslim | 9 | 33 | 66 | 117 | 50 |
+| Buddhist | 1 | 19 | 21 | 43 | 15 |
+| Catholic | 52 | 95 | 12 | 268 | 51 |
+| Hindu | 0 | 10 | 23 | 42 | 40 |
+| Jewish | 33 | 85 | 63 | 287 | 96 |
+| Muslim | 10 | 41 | 62 | 122 | 40 |
 | Orthodox Christian | 1 | 0 | 2 | 0 | 0 |
-| Protestant and other Christian | 178 | 1582 | 1088 | 2144 | 972 |
+| Protestant and other Christian | 175 | 1678 | 1007 | 2294 | 810 |
 | Sikh | 0 | 5 | 2 | 7 | 1 |
-| Unknown | 86 | 600 | 476 | 335 | 512 |
+| Unknown | 76 | 654 | 468 | 358 | 453 |
 
 Colocation by where the address came from:
 
 | address_basis | school | shared | commercial | single-use | unknown |
 | --- | --- | --- | --- | --- | --- |
-| listing | 397 | 2407 | 1757 | 3219 | 1742 |
+| listing | 348 | 2587 | 1660 | 3421 | 1506 |
 
-Of the school flags, 163 are a private school on a religious-owned lot: most likely the congregation's own school, not a rental. The full rules split these out as "own school on campus".
+Of the school flags, 143 are a private school on a religious-owned lot: most likely the congregation's own school, not a rental. The full rules split these out as "own school on campus".
 
 ## Weekly main services, where found
 
@@ -71,17 +71,17 @@ Lots where two or more congregations seem to gather, as each merge rule is added
 
 | merge_keys | congregations | lots_with_2plus | congregations_on_those_lots |
 | --- | --- | --- | --- |
-| website or same name | 9397 | 1282 | 3024 |
-| + phone | 9130 | 1113 | 2588 |
-| + name match | 9029 | 1047 | 2421 |
-| + IRS EIN | 9027 | 1046 | 2418 |
+| website or same name | 9382 | 1381 | 3259 |
+| + phone | 9065 | 1174 | 2735 |
+| + name match | 8961 | 1104 | 2561 |
+| + IRS EIN | 8959 | 1103 | 2558 |
 
 Evidence behind each "shared" flag after merging:
 
 | shared_evidence | places | lots |
 | --- | --- | --- |
-| listings only | 1876 | 796 |
-| two or more IRS congregations | 531 | 193 |
+| listings only | 1985 | 839 |
+| two or more IRS congregations | 602 | 216 |
 
 ### IRS registrations
 
@@ -96,13 +96,13 @@ Overture listings matched to an IRS registration (same lot, or a unique name mat
 
 | tradition | places | matched | pct_matched | on_same_lot | matched_school_or_support |
 | --- | --- | --- | --- | --- | --- |
-| Protestant and other Christian | 5964 | 2068 | 35.0 | 1269 | 50 |
-| Unknown | 2009 | 502 | 25.0 | 258 | 36 |
-| Jewish | 564 | 261 | 46.0 | 178 | 14 |
-| Catholic | 478 | 122 | 26.0 | 64 | 32 |
-| Muslim | 275 | 118 | 43.0 | 88 | 11 |
-| Hindu | 115 | 46 | 40.0 | 31 | 1 |
-| Buddhist | 99 | 47 | 47.0 | 36 | 16 |
+| Protestant and other Christian | 5964 | 2124 | 36.0 | 1467 | 50 |
+| Unknown | 2009 | 508 | 25.0 | 311 | 36 |
+| Jewish | 564 | 267 | 47.0 | 195 | 14 |
+| Catholic | 478 | 122 | 26.0 | 75 | 31 |
+| Muslim | 275 | 119 | 43.0 | 103 | 11 |
+| Hindu | 115 | 46 | 40.0 | 35 | 1 |
+| Buddhist | 99 | 48 | 48.0 | 43 | 16 |
 | Sikh | 15 | 5 | 33.0 | 5 | 1 |
 | Orthodox Christian | 3 | 2 | 67.0 | 2 | 0 |
 
@@ -110,14 +110,14 @@ IRS congregations that no Overture listing matched, by the lot of their register
 
 | lot_type | congregations | lot_has_an_overture_listing | registered_since_2010 |
 | --- | --- | --- | --- |
-| house or residential building | 2790 | 59 | 1074 |
-| commercial lot | 1770 | 284 | 671 |
-| religious lot owned by another body | 1131 | 574 | 309 |
-| other lot | 899 | 51 | 398 |
-| apartment | 664 | 16 | 355 |
+| house or residential building | 2783 | 70 | 1073 |
+| commercial lot | 1757 | 299 | 668 |
+| religious lot owned by another body | 1125 | 630 | 309 |
+| other lot | 888 | 106 | 397 |
+| apartment | 665 | 17 | 356 |
 | PO box | 480 | 0 | 98 |
-| religious lot it owns | 468 | 183 | 103 |
-| school lot | 177 | 64 | 48 |
+| religious lot it owns | 442 | 193 | 100 |
+| school lot | 176 | 65 | 48 |
 | address not placed | 125 | 0 | 49 |
 
 ### Agreement at the lot level
@@ -126,25 +126,25 @@ Lots named by each source. Worship lot = building class M1/M9, or a religious ow
 
 | overture | worship_lot | osm_building | irs | lots |
 | --- | --- | --- | --- | --- |
-| 0 | 0 | 0 | 1 | 5448 |
-| 1 | 0 | 0 | 0 | 3323 |
-| 0 | 1 | 0 | 0 | 1265 |
-| 1 | 1 | 0 | 1 | 955 |
-| 1 | 1 | 0 | 0 | 941 |
-| 1 | 0 | 0 | 1 | 838 |
-| 1 | 1 | 1 | 0 | 814 |
-| 1 | 1 | 1 | 1 | 691 |
-| 0 | 1 | 0 | 1 | 511 |
-| 0 | 1 | 1 | 0 | 207 |
-| 0 | 0 | 1 | 0 | 168 |
-| 1 | 0 | 1 | 0 | 87 |
+| 0 | 0 | 0 | 1 | 5242 |
+| 1 | 0 | 0 | 0 | 2877 |
+| 0 | 1 | 0 | 0 | 1228 |
+| 1 | 1 | 0 | 1 | 1072 |
+| 1 | 0 | 0 | 1 | 1044 |
+| 1 | 1 | 0 | 0 | 978 |
+| 1 | 1 | 1 | 0 | 722 |
+| 1 | 1 | 1 | 1 | 711 |
+| 0 | 1 | 0 | 1 | 394 |
+| 0 | 1 | 1 | 0 | 299 |
+| 0 | 0 | 1 | 0 | 167 |
+| 1 | 0 | 1 | 0 | 88 |
 
 Capture-recapture (Chapman). The lists are not independent and IRS keeps closed churches on file, so these are rough indications, not counts:
 
 | pair | list_1 | list_2 | in_both | estimated_total |
 | --- | --- | --- | --- | --- |
-| Congregations: Overture x IRS | 9027 | 11100 | 2883 | 34749 |
-| Lots: Overture x OSM buildings | 7697 | 2113 | 1640 | 9916 |
+| Congregations: Overture x IRS | 8959 | 11100 | 2940 | 33819 |
+| Lots: Overture x OSM buildings | 7547 | 2113 | 1576 | 10117 |
 
 ## Recall check: worship lots with no Overture place
 

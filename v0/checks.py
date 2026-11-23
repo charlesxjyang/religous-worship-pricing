@@ -26,7 +26,7 @@ import re
 from collections import defaultdict
 
 import config
-from names import names_match
+from names import names_match, tokens
 
 WEB_DIR = config.RAW / "web"
 SUFFIX = (r"Street|St|Avenue|Ave|Av|Road|Rd|Boulevard|Blvd|Place|Pl|Parkway|Pkwy|Lane|Ln|"
@@ -38,7 +38,20 @@ ADDR_RE = re.compile(
 UNIT_APT_RE = re.compile(r"\b(apt|apartment|unit|ph|penthouse)\b\.?\s*[\w-]+|#\s*\d+[a-z]?\b|\b(fl|floor)\s*([2-9]|\d{2,})\b|\b\d{1,2}[a-z]\b$", re.I)
 UNIT_STREET_RE = re.compile(r"\b(store|storefront|ground|grd|bsmt|basement|fl(oor)?\s*1|1st\s+fl(oor)?)\b", re.I)
 CATHOLIC_SCHOOL_RE = re.compile(r"\b(ST|SAINT|OUR LADY|HOLY|SACRED|BLESSED|IMMACULATE|CHRIST THE KING|CATHOLIC|ANNUNCIATION|ASSUMPTION|RESURRECTION|NATIVITY|VISITATION|TRANSFIGURATION|PRECIOUS BLOOD|GUARDIAN ANGEL)\b")
-CATHOLIC_OWNER_RE = re.compile(r"\b(ARCHDIOCESE|DIOCESE|ROMAN CATHOLIC|R\.?\s?C\.?|CATHOLIC|PARISH|ARCHBISHOP|BISHOP OF)\b")
+CATHOLIC_OWNER_RE = re.compile(r"\b(ARCHDIOCESE|DIOCESE|ROMAN CATHOLIC|CATHOLIC|PARISH|ARCHBISHOP|BISHOP OF)\b"
+                               r"|\bR\.?\s?C(\b|\d|CH)")
+FILLER = {"the", "of", "inc", "ny", "nyc", "new", "york", "and", "de", "la", "el", "corp", "incorporated"}
+
+
+def named_for(cong_name: str, school_name: str) -> bool:
+    """School name carries the congregation's name: 'Muslim Center of New York'
+    and 'Muslim Center Junior High School'; 'St Brigid Church' and 'St Brigid School'."""
+    if names_match(cong_name, school_name):
+        return True
+    words = [t for t in tokens(cong_name) if t not in FILLER]
+    words = [t for t in words if t not in ("church", "congregation", "masjid", "temple")] or words
+    school = set(tokens(school_name))
+    return len(words) >= 2 and all(t in school for t in words[:3])
 
 
 def addr_keys(text: str) -> set[tuple[str, str]]:
@@ -84,6 +97,7 @@ def home_checks(con):
     """).fetchall())
     out = []
     for cong_id, bbl, use, addresses, site_keys, eins, osm in rows:
+        addresses, site_keys, eins = addresses or [], site_keys or [], eins or []
         listing_keys = set().union(*(addr_keys(a) for a in addresses)) if addresses else set()
         text = "\n".join(site_text(k) for k in site_keys)
         site_keys_found = addr_keys(text) if text else set()
@@ -130,7 +144,7 @@ def school_checks(con):
             sname, src = sc["name"], sc["source"]
             if src == "nces_public":
                 kinds.append(("public school", sname))
-            elif any(names_match(n, sname) for n in cong_names):
+            elif any(named_for(n, sname) for n in cong_names):
                 kinds.append(("own school", sname))
             elif (tradition == "Catholic" and CATHOLIC_SCHOOL_RE.search(sname.upper())
                   and CATHOLIC_OWNER_RE.search((owner or "").upper())):
@@ -142,6 +156,26 @@ def school_checks(con):
         check = ("public school" if "public school" in labels else
                  "independent school" if "independent school" in labels else "own school")
         out.append((cong_id, check, "; ".join(f"{n} ({k})" for k, n in kinds)))
+    # School-class buildings (DOF class W) with no NCES school on the lot:
+    # judge by owner and class instead.
+    rows = con.execute("""
+        SELECT s.cong_id, s.names, s.tradition, s.bldgclass, f.ownername, f.religious_owned
+        FROM cong_sites s JOIN lot_flags f ON f.bbl = s.bbl
+        WHERE left(s.bldgclass, 1) = 'W'
+    """).fetchall()
+    have = {r[0] for r in out}
+    for cong_id, names, tradition, cls, owner, rel_owned in rows:
+        if cong_id in have:
+            continue
+        cong_names = (names or "").split(" | ")
+        if any(names_match(n, owner or "") or named_for(n, owner or "") for n in cong_names) \
+                or (cls == "W2" and rel_owned) \
+                or (tradition == "Catholic" and CATHOLIC_OWNER_RE.search((owner or "").upper())):
+            out.append((cong_id, "own school", f"{cls} school building owned by {owner} (own)"))
+        elif cls in ("W5", "W6"):
+            out.append((cong_id, "college", f"{cls} college building owned by {owner}"))
+        else:
+            out.append((cong_id, "unrelated school building", f"{cls} school building owned by {owner}"))
     con.execute("CREATE OR REPLACE TABLE school_checks (cong_id VARCHAR, school_check VARCHAR, schools_on_lot VARCHAR)")
     if out:
         con.executemany("INSERT INTO school_checks VALUES (?, ?, ?)", out)
