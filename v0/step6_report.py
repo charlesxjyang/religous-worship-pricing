@@ -101,8 +101,11 @@ def cross_checks(con, w, q, one):
             FROM v0_nyc GROUP BY 1 ORDER BY 2 DESC
         """)))
         w("\nIRS congregations that no Overture listing matched, by the lot of their "
-          "registered address. Those registered on another body's religious lot, a school or "
-          "a commercial lot are candidate renters and guests:\n")
+          "registered address (listed in `v0/private/nyc_irs_only.csv`). Those registered on "
+          "another body's religious lot, a school or a commercial lot are candidate renters "
+          "and guests. Those at a house or apartment are mostly a pastor's or treasurer's "
+          "address, not where people gather. PLUTO cuts owner names at about 21 characters, "
+          "so some \"owned by another body\" lots are the congregation's own:\n")
         w(md_table(q("""
             SELECT lot_type, count(*) AS congregations,
                    count(*) FILTER (WHERE lot_has_listing) AS lot_has_an_overture_listing,
@@ -272,6 +275,8 @@ def main():
     con = connect(config.DB_PATH)
     build_table(con)
     con.execute(f"COPY (SELECT * FROM v0_nyc ORDER BY borough, name) TO '{CSV}' (HEADER)")
+    con.execute(f"""COPY (SELECT * FROM irs_only ORDER BY lot_type, name)
+                    TO '{config.PRIVATE_DIR / "nyc_irs_only.csv"}' (HEADER)""")
     con.execute(f"""
         CREATE OR REPLACE TABLE check50 AS
         SELECT * FROM (SELECT * FROM v0_nyc ORDER BY overture_id)
