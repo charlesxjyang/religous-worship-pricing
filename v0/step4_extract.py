@@ -181,7 +181,32 @@ def quote_ok(quote: str | None, haystack_norm: str) -> bool:
         return True
     # Allow a quote that skips a line break or an ellipsis: every piece present.
     pieces = [x.strip() for x in re.split(r"\.\.\.|…", q) if x.strip()]
-    return len(pieces) > 1 and all(x in haystack_norm for x in pieces)
+    if len(pieces) > 1 and all(x in haystack_norm for x in pieces):
+        return True
+    # Same words with different spacing or punctuation ("4 : 00pm", "((").
+    # Words joined from separate parts of the page still fail.
+    q_alnum = re.sub(r"[\W_]+", "", q)
+    return len(q_alnum) >= 12 and q_alnum in re.sub(r"[\W_]+", "", haystack_norm)
+
+
+def reverify(rec: dict, text: str) -> int:
+    """Recheck items dropped by an earlier verifier; restore those that now pass."""
+    hay, restored = norm(text), 0
+    res, stats = rec["result"], Counter(rec.get("verification", {}))
+    for key, items in list(rec.get("dropped", {}).items()):
+        still = []
+        for item in items:
+            if quote_ok(item.get("evidence"), hay):
+                res[key].append(item)
+                stats[f"{key}_ok"] += 1
+                stats[f"{key}_dropped"] -= 1
+                restored += 1
+            else:
+                still.append(item)
+        rec["dropped"][key] = still
+    res["schedule_found"] = bool(res.get("services"))
+    rec["verification"] = {k: v for k, v in stats.items() if v}
+    return restored
 
 
 def verify(result: dict, text: str) -> dict:
@@ -215,6 +240,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int)
     ap.add_argument("--effort", default="medium", choices=["low", "medium", "high"])
+    ap.add_argument("--reverify", action="store_true",
+                    help="recheck stored dropped items against the page text; no API calls")
     ap.add_argument("--estimate", action="store_true", help="estimate tokens and cost; no API calls")
     args = ap.parse_args()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -241,6 +268,21 @@ def main():
         jobs.append((key, site["start_url"], text, cut))
     if args.limit:
         jobs = jobs[: args.limit]
+    if args.reverify:
+        n_files = n_items = 0
+        for skey, _, text, _ in jobs:
+            out = OUT_DIR / f"{skey}.json"
+            if not out.exists():
+                continue
+            rec = json.loads(out.read_text())
+            if rec.get("result") is None or not rec.get("dropped"):
+                continue
+            k = reverify(rec, text)
+            if k:
+                out.write_text(json.dumps(rec))
+                n_files, n_items = n_files + 1, n_items + k
+        print(f"reverify: restored {n_items:,} items in {n_files:,} sites")
+        return
 
     sys_chars = len(SYSTEM) + len(json.dumps(SCHEMA))
     est_in = sum((len(t) + sys_chars + 400) / 3.5 for _, _, t, _ in jobs)
