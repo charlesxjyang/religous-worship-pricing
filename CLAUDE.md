@@ -19,14 +19,40 @@ steps are the plan's Version 0 steps; only the inputs and output names change.
 | NCES public and private schools | Same NCES EDGE files (public 2024-25, private 2023-24), clipped to the boroughs | nces.ed.gov |
 | Overture places | Same: latest release on S3, the seven kept basic categories | `s3://overturemaps-us-west-2` |
 
-Outputs: `v0/nyc.csv` and `v0/report.md` (the plan's `v0/richmond.csv`), plus
-`v0/step1_report.md` from step 1.
+**Gathering address, not business address** (Charles, 2026-11-23). What
+matters is where people physically gather for worship, not a mailing, office
+or registered address. Step 4 asks each congregation's own website where it
+holds services, geocodes that to a lot, and step 5 judges colocation at that
+lot. The Overture listing lot is only the fallback (`address_basis`).
+
+Outputs: `v0/report.md` (aggregates, committed) and, in `v0/private/`
+(gitignored), `nyc.csv`, `nyc_check50.csv`, `check50.md` and
+`nyc_recall_misses.csv`. The repo is **public** and the plan publishes
+aggregates only, so never commit point-level files (names, addresses, lots);
+send them to Charles directly.
 
 Status:
 
-- [x] Step 1: inputs loaded, counts and 20 samples in `v0/step1_report.md`.
-  **Stop here** until Charles says step 1 looks right.
-- [ ] Steps 2–6.
+- [x] Step 1: inputs loaded, `v0/step1_report.md`.
+- [x] Step 2: places and schools attached to lots; lots flagged.
+- [x] Step 3: recall check.
+- [x] Step 4a: websites crawled (`data/nyc/raw/web/`).
+- [ ] Step 4b: extraction, waiting for `WORSHIP_ANTHROPIC_API_KEY`
+  (run `--estimate`, then `--limit 50` as a pilot, then all).
+- [ ] Step 4c–6: rerun after 4b. Until then they run on listing lots only.
+- [ ] Charles checks the 50 rows.
+
+```bash
+.venv/bin/python v0/step2_parcels.py
+.venv/bin/python v0/step3_recall.py
+.venv/bin/python v0/step4_crawl.py
+.venv/bin/python v0/step4_extract.py --estimate
+.venv/bin/python v0/step4_geocode.py
+.venv/bin/python v0/step5_colocate.py
+.venv/bin/python v0/step6_report.py
+```
+
+Only one process can open `data/nyc/nyc_v0.duckdb` at a time; run steps in order.
 
 ## NYC notes for steps 2–6
 
@@ -39,8 +65,10 @@ Status:
   the base lot, so some PLUTO rows have no polygon. Report the gap, don't drop it.
 - Colocation unit in v0 is the tax lot (BBL). BIN (building) is an open
   decision in the plan.
-- NYC is about 30 times Richmond's size: expect about 10,000 Overture places,
-  so the step 4 crawl needs a cost estimate before it runs at full size.
+- NYC is about 30 times Richmond's size: about 9,500 Overture places and 5,300
+  distinct websites. Run `step4_extract.py --estimate` before a full run.
+- Many Overture websites belong to a namesake elsewhere (a Norfolk, VA church
+  for a Bronx listing). Extraction reports `site_match`; "no" sites are ignored.
 
 ## Environment
 
@@ -53,10 +81,20 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
   the DuckDB version. The extension server is blocked in cloud sessions.
 - Overture's bucket is public. `common.connect()` sets an S3 secret with empty
   keys, because cloud sessions export placeholder `AWS_*` variables that S3 rejects.
-- The cloud environment `religous-worship-pricing` allows
-  `data.cityofnewyork.us`, `s-media.nyc.gov`, `www.nyc.gov` and `nces.ed.gov`.
-  `www.nyc.gov` (DCP's Bytes of the Big Apple pages) answers 403 to scripted
+- The cloud environment `religous-worship-pricing` has unrestricted network
+  access (needed to crawl thousands of congregation sites). Its proxy carries
+  **HTTPS only**, so the crawler upgrades `http://` links; HTTP-only sites fail
+  here and would load from a normal network.
+- `www.nyc.gov` (DCP's Bytes of the Big Apple pages) answers 403 to scripted
   requests. Do not work around that; use NYC Open Data copies instead.
+- Extraction reads the key from `WORSHIP_ANTHROPIC_API_KEY`, set as an
+  environment variable in the environment's settings. Not `ANTHROPIC_API_KEY`,
+  which Claude Code itself would pick up. The client sets
+  `base_url="https://api.anthropic.com"` because cloud sessions set
+  `ANTHROPIC_BASE_URL`. Model `claude-haiku-5-5` (the plan's small model for
+  bulk extraction), hard cap `MAX_SPEND_USD` in `v0/step4_extract.py`.
+- Gathering addresses are geocoded with NYC Planning Labs GeoSearch
+  (`geosearch.planninglabs.nyc`, no key), which returns BBL and BIN.
 - HTTP etiquette is in `v0/common.py`: a project user agent (add a contact
   with the `CONTACT_EMAIL` environment variable), one request at a time, a 1 s
   pause, and cached downloads under `data/nyc/raw/`, which is not committed.

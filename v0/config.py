@@ -20,6 +20,9 @@ DATA = ROOT / "data" / CITY
 RAW = DATA / "raw"
 DB_PATH = DATA / "nyc_v0.duckdb"
 REPORT_DIR = ROOT / "v0"
+# Point-level outputs (names, addresses, lots). The repo is public and the plan
+# publishes aggregates only, so this folder is gitignored.
+PRIVATE_DIR = REPORT_DIR / "private"
 
 # --- Overture Maps places -------------------------------------------------
 OVERTURE_BUCKET = "overturemaps-us-west-2"
