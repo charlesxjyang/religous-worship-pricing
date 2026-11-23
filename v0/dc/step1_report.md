@@ -1,6 +1,6 @@
 # Version 0, step 1: Washington, DC inputs loaded
 
-Run 2026-11-23. Overture release 2026-11-18.0; parcels ITSPE 1785729600000; NCES public 2024-25 and private 2023-24. Stop here for a sanity check before step 2.
+Run 2026-11-23. Overture release 2026-11-18.0; parcels ITSPE 2026-08-03; NCES public 2024-25 and private 2023-24. Stop here for a sanity check before step 2.
 
 ## Inputs
 
@@ -10,7 +10,7 @@ Run 2026-11-23. Overture release 2026-11-18.0; parcels ITSPE 1785729600000; NCES
 | Ward boundaries | 8 | DCGIS Ward - 2022 |
 | Parcel polygons | 137394 | DC OTR owner polygons |
 | Parcel records | 137383 | ITSPE, with RPTA tax exemptions |
-| Polygons with a parcel record | 132983 | 96.8% of polygons |
+| Polygons with a parcel record | 132995 | 96.8% of polygons |
 | NCES public schools | 246 | EDGE 2024-25 |
 | NCES private schools | 50 | EDGE 2023-24 |
 
@@ -67,16 +67,16 @@ Overture's confidence that the place exists. Low bands are candidates for a cuto
 | jewish_place_of_worship | jewish_place_of_worship | 16 |
 | muslim_place_of_worship | muslim_place_of_worship | 14 |
 | buddhist_place_of_worship | buddhist_place_of_worship | 7 |
-| protestant_place_of_worship | christian_place_of_worship | 6 |
 | methodist_place_of_worship | christian_place_of_worship | 6 |
+| protestant_place_of_worship | christian_place_of_worship | 6 |
 | place_of_worship | place_of_worship | 4 |
 | seminary | religious_organization | 3 |
-| monastery | religious_organization | 2 |
 | sikh_place_of_worship | place_of_worship | 2 |
+| monastery | religious_organization | 2 |
+| lutheran_place_of_worship | christian_place_of_worship | 1 |
 | jehovahs_witness_place_of_worship | christian_place_of_worship | 1 |
 | hindu_place_of_worship | hindu_place_of_worship | 1 |
 | eastern_orthodox_place_of_worship | christian_place_of_worship | 1 |
-| lutheran_place_of_worship | christian_place_of_worship | 1 |
 
 ## Overture: operating status and source datasets
 
@@ -100,38 +100,18 @@ Overture's confidence that the place exists. Low bands are candidates for a cuto
 | --- | --- | --- |
 | religious_school | place_of_learning | 12 |
 
-## Overture: 20 random places (seed 20261122)
+## Overture: 20 random places
 
-| name | category | borough | address | website | conf | status |
-| --- | --- | --- | --- | --- | --- | --- |
-| St. Stephen and the Incarnation Episcopal Ch… | christian_place_of_worship | Ward 1 | 1525 Newton St NW | http://www.saintstephensdc.org/ | 0.97 | open |
-| Avendano Global | religious_organization | Ward 2 | 818 18th St NW Ste 810 1145 | http://www.avendanoglobal.org/ | 0.11 |  |
-| Founding Church of Scientology | christian_place_of_worship | Ward 2 | 1731 Connecticut Ave NW | http://scientology.org | 0.57 | open |
-| The United Church | christian_place_of_worship | Ward 2 | 1920 G St NW | http://www.theunitedchurch.org/ | 0.99 | open |
-| St Mary Armenian Apostolic Church | christian_place_of_worship | Ward 3 | 4125 Fessenden St NW | http://www.stmaryaac.org/ | 1.0 | open |
-| St. David's Episcopal Church | christian_place_of_worship | Ward 3 | 5150 Macomb St NW | http://www.stdavidsdc.org/ | 0.99 | open |
-| Peoples Congregational United Church of Chri… | christian_place_of_worship | Ward 4 | 4704 13th St NW | https://www.peopleschurchucc.org/ | 0.99 | open |
-| International Coalition For Religious Freedom | religious_organization | Ward 5 | 3600 New York Ave Ne Fl 3 |  | 0.55 | open |
-| Kingdom Unfiltered | christian_place_of_worship | Ward 5 | 1219 Hamlin St NE | http://www.firstchurchwash.org/ | 0.73 | open |
-| Masjid Muhammad | muslim_place_of_worship | Ward 5 | 1519 4th St NW | https://www.masjidmuhammad.com | 1.0 | open |
-| The Technicolor Church | christian_place_of_worship | Ward 6 | 700 Delaware Ave SW |  | 0.92 | open |
-| Ar Rashidun Community Center | muslim_place_of_worship | Ward 7 | 1605 Kenilworth Ave NE | https://restoncommunitycenter.com | 0.95 | open |
-| Dcgovt-P & Rd-Rc & P-Benning | religious_organization | Ward 7 | 5113 Fitch St SE |  | 0.54 |  |
-| New Mount Calvary Baptist Church | baptist_place_of_worship | Ward 7 | 4270 Benning Rd NE | http://newmtcalvary.org/ | 0.99 | open |
-| Peace Baptist Church | baptist_place_of_worship | Ward 7 | 712 18th St NE | http://www.pbc712.org/ | 0.99 | open |
-| Victory Praise Church of God | christian_place_of_worship | Ward 7 | 4403 Gault Pl NE | http://victorypraise.homestead.com/ | 0.92 | open |
-| Deliverance Temple AME Zion Church | christian_place_of_worship | Ward 8 | 3329 Martin Luther King Jr Ave SE |  | 0.92 | open |
-| Gatepost | christian_place_of_worship | Ward 8 | 1300 Marion Barry Ave SE | http://www.gatepostdc.org | 0.93 | open |
-| Kids' Konnection | religious_organization | Ward 8 | 3929 4th St SE | http://kidskonnectiondc.com/home | 0.92 | open |
-| Sun Of Man Ministries | christian_place_of_worship | Ward 8 | 1110 U St SE |  | 0.55 | open |
+In `v0/dc/private/step1_samples.md` (not committed: it names places and addresses).
 
 ## Parcels: religious building classes
 
 | bldgclass | label | lots | owner_type_x | bldg_area_sqft |
 | --- | --- | --- | --- | --- |
 | M1 | Church, synagogue, chapel | 675 | 609 |  |
+| M9 | Miscellaneous religious facility | 560 | 560 |  |
 
-Land use 08 (public facilities and institutions): 2,029 lots. Owner type X (fully exempt, privately owned): 9,582 lots.
+Land use 08 (public facilities and institutions): 2,545 lots. Owner type X (fully exempt, privately owned): 9,582 lots.
 
 ## Schools by ward
 

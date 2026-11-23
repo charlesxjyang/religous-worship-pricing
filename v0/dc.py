@@ -160,6 +160,12 @@ def load_parcels(con):
                p.mixeduse
         FROM p JOIN dc_ssl s USING (ssl) LEFT JOIN ex USING (ssl)
     """)
+    # DC grants the religious exemption (E1) only for property used for worship,
+    # clergy housing or religious communities, so treat such lots as religious
+    # buildings whatever their tax use code (a convent coded as a house, say).
+    con.execute("ALTER TABLE pluto ADD COLUMN bldgclass_usecode VARCHAR")
+    con.execute("UPDATE pluto SET bldgclass_usecode = bldgclass")
+    con.execute("UPDATE pluto SET bldgclass = 'M9' WHERE exempt_religious AND coalesce(bldgclass, '') NOT LIKE 'M%'")
     con.execute(f"UPDATE pluto SET landuse = {lu_case}")
     con.execute("""
         CREATE OR REPLACE TABLE parcels AS

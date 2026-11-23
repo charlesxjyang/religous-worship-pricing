@@ -172,7 +172,7 @@ def school_checks(con):
                 or (cls == "W2" and rel_owned) \
                 or (tradition == "Catholic" and CATHOLIC_OWNER_RE.search((owner or "").upper())):
             out.append((cong_id, "own school", f"{cls} school building owned by {owner} (own)"))
-        elif cls in ("W5", "W6"):
+        elif cls in ("W5", "W6") or re.search(r"\b(COLLEGE|UNIVERSITY|SEMINARY)\b", (owner or "").upper()):
             out.append((cong_id, "college", f"{cls} college building owned by {owner}"))
         else:
             out.append((cong_id, "unrelated school building", f"{cls} school building owned by {owner}"))
