@@ -22,6 +22,8 @@ NOT_WORSHIP_OWNER = r"\b(YESHIVA|TALMUD|MESIVTA|KOLLEL|ACADEMY|SCHOOL|MEDICAL|HO
 def main():
     con = connect(config.DB_PATH)
     deg = NEAR_M / 80_000
+    # DC's parcel records carry no floor area; its land use 08 already excludes vacant lots.
+    has_building = "f.bldgarea > 0" if config.CITY == "nyc" else "true"
     # NYC's BBL starts with the borough number; elsewhere, find the area spatially.
     area_join = ("LEFT JOIN boroughs b ON b.borocode = CAST(left(CAST(w.bbl AS VARCHAR), 1) AS INT)"
                  if config.CITY == "nyc" else
@@ -35,7 +37,7 @@ def main():
           FROM lot_flags f
           JOIN (SELECT bbl, ST_Union_Agg(geom) AS geom FROM taxlots GROUP BY bbl) t USING (bbl)
           WHERE f.bldgclass IN ('M1', 'M9')
-             OR (f.rel_owner AND f.landuse = 8 AND f.bldgarea > 0
+             OR (f.rel_owner AND f.landuse = 8 AND {has_building}
                  AND NOT regexp_matches(f.ownername, '{NOT_WORSHIP_OWNER}'))
         ), on_lot AS (
           SELECT bbl, count(*) AS n_on_lot FROM place_lot GROUP BY bbl
