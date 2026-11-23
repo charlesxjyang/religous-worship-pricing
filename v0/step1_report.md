@@ -1,6 +1,6 @@
 # Version 0, step 1: NYC inputs loaded
 
-Run 2026-11-22. Overture release 2026-11-18.0; PLUTO 26v2; NCES public 2024-25 and private 2023-24. Stop here for a sanity check before step 2.
+Run 2026-11-23. Overture release 2026-11-18.0; PLUTO 26v2; NCES public 2024-25 and private 2023-24. Stop here for a sanity check before step 2.
 
 ## Inputs
 
@@ -72,8 +72,8 @@ Overture's confidence that the place exists. Low bands are candidates for a cuto
 | jehovahs_witness_place_of_worship | christian_place_of_worship | 39 |
 | place_of_worship | place_of_worship | 35 |
 | sikh_place_of_worship | place_of_worship | 15 |
-| seminary | religious_organization | 6 |
 | methodist_place_of_worship | christian_place_of_worship | 6 |
+| seminary | religious_organization | 6 |
 | lutheran_place_of_worship | christian_place_of_worship | 5 |
 | monastery | religious_organization | 4 |
 | eastern_orthodox_place_of_worship | christian_place_of_worship | 1 |
