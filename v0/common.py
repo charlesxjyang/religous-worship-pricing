@@ -82,6 +82,72 @@ def connect(path: Path | None = None) -> duckdb.DuckDBPyConnection:
     return con
 
 
+GEOSEARCH = "https://geosearch.planninglabs.nyc/v2/search"
+
+
+def geosearch(text, cache, lock):
+    """NYC Planning Labs GeoSearch: address -> lot (BBL) and building (BIN)."""
+    import json
+
+    with lock:
+        if text in cache:
+            return cache[text]
+    url = GEOSEARCH + "?" + urllib.parse.urlencode({"text": text, "size": 1})
+    hit = None
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": user_agent()})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                feats = json.load(r).get("features", [])
+            if feats:
+                p, g = feats[0]["properties"], feats[0]["geometry"]["coordinates"]
+                pad = p.get("addendum", {}).get("pad", {})
+                hit = {"label": p.get("label"), "confidence": p.get("confidence"),
+                       "match_type": p.get("match_type"), "borough": p.get("borough"),
+                       "bbl": pad.get("bbl"), "bin": pad.get("bin"), "lon": g[0], "lat": g[1]}
+            break
+        except Exception:
+            time.sleep(2 ** attempt)
+    time.sleep(0.25)
+    with lock:
+        cache[text] = hit
+    return hit
+
+
+def make_geocoder(con):
+    """The city's address geocoder: geocode(text, cache, lock) -> dict or None.
+
+    The dict has label, confidence, bbl, bin, lat, lon. bbl may be None (DC's
+    Census fallback); assign_lots() then finds the parcel for the point.
+    """
+    if config.GEOCODER == "geosearch":
+        return geosearch
+    import dc
+    return dc.make_geocoder(con)
+
+
+def assign_lots(con, table: str, key: str, near_m: float = 30):
+    """Fill table.bbl from the parcel under (lat, lon), else the nearest within near_m."""
+    deg = near_m / 80_000
+    con.execute(f"""
+        CREATE OR REPLACE TEMP TABLE _pts AS
+        SELECT {key} AS k, ST_Point(lon, lat) AS geom FROM {table}
+        WHERE bbl IS NULL AND lat IS NOT NULL AND lon IS NOT NULL
+    """)
+    con.execute("""
+        CREATE OR REPLACE TEMP TABLE _hit AS
+        SELECT k, arg_min(t.bbl, ST_Area(t.geom)) AS bbl FROM _pts p
+        JOIN taxlots t ON ST_Contains(t.geom, p.geom) GROUP BY k
+    """)
+    con.execute(f"""
+        INSERT INTO _hit
+        SELECT p.k, arg_min(t.bbl, ST_Distance(t.geom, p.geom)) FROM _pts p
+        JOIN taxlots t ON ST_DWithin(t.geom, p.geom, {deg})
+        WHERE p.k NOT IN (SELECT k FROM _hit) GROUP BY p.k
+    """)
+    con.execute(f"UPDATE {table} SET bbl = h.bbl FROM _hit h WHERE {table}.{key} = h.k AND {table}.bbl IS NULL")
+
+
 def latest_overture_release() -> str:
     url = (f"https://{config.OVERTURE_BUCKET}.s3.{config.OVERTURE_REGION}.amazonaws.com/"
            "?list-type=2&prefix=release/&delimiter=/")

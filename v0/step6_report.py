@@ -16,11 +16,11 @@ import config
 from common import connect
 from step1_load import md_table
 
-CSV = config.PRIVATE_DIR / "nyc.csv"
-CHECK = config.PRIVATE_DIR / "nyc_check50.csv"
+CSV = config.PRIVATE_DIR / f"{config.CITY}.csv"
+CHECK = config.PRIVATE_DIR / f"{config.CITY}_check50.csv"
 CHECK_MD = config.PRIVATE_DIR / "check50.md"
 REPORT = config.REPORT_DIR / "report.md"
-RECALL_CSV = config.PRIVATE_DIR / "nyc_recall_misses.csv"
+RECALL_CSV = config.PRIVATE_DIR / f"{config.CITY}_recall_misses.csv"
 
 
 def build_table(con):
@@ -101,7 +101,7 @@ def cross_checks(con, w, q, one):
             FROM v0_nyc GROUP BY 1 ORDER BY 2 DESC
         """)))
         w("\nIRS congregations that no Overture listing matched, by the lot of their "
-          "registered address (listed in `v0/private/nyc_irs_only.csv`). Those registered on "
+          f"registered address (listed in `{(config.PRIVATE_DIR / f'{config.CITY}_irs_only.csv').relative_to(config.ROOT)}`). Those registered on "
           "another body's religious lot, a school or a commercial lot are candidate renters "
           "and guests. Those at a house or apartment are mostly a pastor's or treasurer's "
           "address, not where people gather. PLUTO cuts owner names at about 21 characters, "
@@ -169,7 +169,7 @@ def report(con) -> str:
     cost = one("SELECT coalesce(sum(cost_usd), 0) FROM extract_sites")[0]
     pct = lambda a: f"{100 * a / n:.0f}%" if n else "-"  # noqa: E731
 
-    w("# Version 0 report: New York City\n")
+    w(f"# Version 0 report: {config.CITY_NAME}\n")
     w(f"Run {dt.date.today().isoformat()}. {n:,} Overture places in the seven worship "
       f"categories. Colocation is judged at the lot where each congregation gathers: the "
       f"address its own website gives for services when we could place it, otherwise its "
@@ -251,12 +251,12 @@ def report(con) -> str:
                count(*) FILTER (WHERE places_within_40m = 0) AS likely_misses
         FROM recall_lots GROUP BY ALL ORDER BY 1, 2
     """)))
-    w("\nThe likely misses, with owner and address, are in `v0/private/nyc_recall_misses.csv`.\n")
+    w(f"\nThe likely misses, with owner and address, are in `{RECALL_CSV.relative_to(config.ROOT)}`.\n")
 
     w("## 50 random rows for checking\n")
     w(f"Drawn with seed {config.SAMPLE_SEED}. They name places and addresses, so they are in "
-      "`v0/private/check50.md` and `v0/private/nyc_check50.csv` (with evidence quotes and "
-      "URLs), which are not committed.\n")
+      f"`{CHECK_MD.relative_to(config.ROOT)}` and `{CHECK.relative_to(config.ROOT)}` (with "
+      "evidence quotes and URLs), which are not committed.\n")
 
     w("## Known gaps in this run\n")
     w("- The cloud session reaches websites only over HTTPS; sites with no HTTPS show as "
@@ -276,7 +276,7 @@ def main():
     build_table(con)
     con.execute(f"COPY (SELECT * FROM v0_nyc ORDER BY borough, name) TO '{CSV}' (HEADER)")
     con.execute(f"""COPY (SELECT * FROM irs_only ORDER BY lot_type, name)
-                    TO '{config.PRIVATE_DIR / "nyc_irs_only.csv"}' (HEADER)""")
+                    TO '{config.PRIVATE_DIR / f"{config.CITY}_irs_only.csv"}' (HEADER)""")
     con.execute(f"""
         CREATE OR REPLACE TABLE check50 AS
         SELECT * FROM (SELECT * FROM v0_nyc ORDER BY overture_id)

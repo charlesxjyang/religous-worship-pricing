@@ -88,6 +88,10 @@ def attach_points(con, src_table, id_col, out_table):
 
 
 def flag_lots(con):
+    # DC records a religious tax exemption (E1); NYC's PLUTO has no such field.
+    has_ex = con.execute("SELECT count(*) FROM duckdb_columns() WHERE table_name = 'parcels' "
+                         "AND column_name = 'exempt_religious'").fetchone()[0]
+    rel_exempt = "coalesce(p.exempt_religious, false)" if has_ex else "false"
     con.execute(f"""
         CREATE OR REPLACE TABLE lot_flags AS
         WITH sch AS (
@@ -107,7 +111,8 @@ def flag_lots(con):
                         AND NOT (regexp_matches(p.ownername, {sql_str(PERSON_OWNER_RE)})
                                  AND NOT regexp_matches(p.ownername, {sql_str(FIRM_WORD_RE)})),
                         false) AS rel_owner,
-               (p.bldgclass LIKE 'M%' OR rel_owner) AS religious_owned,
+               {rel_exempt} AS rel_exempt,
+               (p.bldgclass LIKE 'M%' OR rel_owner OR {rel_exempt}) AS religious_owned,
                (p.landuse IN (4, 5) OR left(p.bldgclass, 1) IN ('K', 'O', 'S'))
                  AS commercial_use,
                p.landuse IN (1, 2, 3) AS residential_use,

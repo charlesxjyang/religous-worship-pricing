@@ -1,4 +1,4 @@
-"""Version 0, step 1 (NYC): load the three inputs into DuckDB and report.
+"""Version 0, step 1: load the three inputs into DuckDB and report (CITY=nyc|dc).
 
 Inputs: Overture places, PLUTO + DOF tax-lot polygons, NCES schools.
 Prints category counts and 20 sample rows, writes v0/step1_report.md, and
@@ -40,7 +40,7 @@ def load_overture(con, release):
            "theme=places/type=place/*")
     keep = ", ".join(f"'{c}'" for c in config.KEEP_CATEGORIES)
     b = config.NYC_BBOX
-    out = config.RAW / f"overture_places_{release}_nyc.parquet"
+    out = config.RAW / f"overture_places_{release}_{config.CITY}.parquet"
     if not out.exists():
         print(f"  scanning Overture {release} on S3 ...")
         # Religious-looking categories outside the keep list are pulled too,
@@ -130,13 +130,13 @@ def load_schools(con):
                  SCHOOLYEAR AS school_year
           FROM read_csv('{pub_txt}', delim = '|', header = false, columns = {cols},
                         quote = '"', encoding = 'latin-1')
-          WHERE STATE = 'NY'
+          WHERE STATE = '{config.STATE}'
         ), prv AS (
           SELECT 'nces_private' AS source, PPIN AS school_id, NAME AS name,
                  STREET AS street, CITY AS city, ZIP AS zip, LAT AS lat, LON AS lon,
                  SCHOOLYEAR AS school_year
           FROM ST_Read('/vsizip/{prv_zip}/{config.NCES_PRIVATE_SHP}')
-          WHERE STATE = 'NY'
+          WHERE STATE = '{config.STATE}'
         )
         SELECT s.*, b.boroname, ST_Point(s.lon, s.lat) AS geom
         FROM (SELECT * FROM pub UNION ALL SELECT * FROM prv) s
@@ -172,19 +172,26 @@ def build_report(con, release, overture_file):
     n_lot_match = n("SELECT count(*) FROM parcels WHERE bldgclass IS NOT NULL OR landuse IS NOT NULL OR ownername IS NOT NULL")
     pluto_version = n("SELECT any_value(version) FROM pluto")
 
-    w("# Version 0, step 1: NYC inputs loaded\n")
+    w(f"# Version 0, step 1: {config.CITY_NAME} inputs loaded\n")
     w(f"Run {dt.date.today().isoformat()}. Overture release {release}; "
-      f"PLUTO {pluto_version}; NCES public 2024-25 and private 2023-24. "
+      f"parcels {pluto_version}; NCES public 2024-25 and private 2023-24. "
       "Stop here for a sanity check before step 2.\n")
 
+    if config.CITY == "dc":
+        area, area_src = "Ward", "DCGIS Ward - 2022"
+        lot_src, rec_src = "DC OTR owner polygons", "ITSPE, with RPTA tax exemptions"
+    else:
+        area, area_src = "Borough", f"NYC Open Data {config.BOROUGHS_DATASET}, water included"
+        lot_src = f"DOF tax lots, NYC Open Data {config.TAXLOT_DATASET}"
+        rec_src = f"PLUTO, NYC Open Data {config.PLUTO_DATASET}"
     w("## Inputs\n")
     w(md_table(q(f"""
         SELECT * FROM (VALUES
-          ('Overture places, kept categories', {n_places}, 'inside the five boroughs'),
-          ('Borough boundaries (water included)', {n("SELECT count(*) FROM boroughs")}, 'NYC Open Data {config.BOROUGHS_DATASET}'),
-          ('DOF tax-lot polygons', {n_lots}, 'NYC Open Data {config.TAXLOT_DATASET}'),
-          ('PLUTO lots', {n_pluto}, 'NYC Open Data {config.PLUTO_DATASET}'),
-          ('Lot polygons with a PLUTO match on BBL', {n_lot_match}, '{100 * n_lot_match / n_lots:.1f}% of polygons'),
+          ('Overture places, kept categories', {n_places}, 'inside the city'),
+          ('{area} boundaries', {n("SELECT count(*) FROM boroughs")}, '{area_src}'),
+          ('Parcel polygons', {n_lots}, '{lot_src}'),
+          ('Parcel records', {n_pluto}, '{rec_src}'),
+          ('Polygons with a parcel record', {n_lot_match}, '{100 * n_lot_match / n_lots:.1f}% of polygons'),
           ('NCES public schools', {n("SELECT count(*) FROM schools WHERE source = 'nces_public'")}, 'EDGE 2024-25'),
           ('NCES private schools', {n("SELECT count(*) FROM schools WHERE source = 'nces_private'")}, 'EDGE 2023-24')
         ) t(input, rows, note)
@@ -213,16 +220,15 @@ def build_report(con, release, overture_file):
                count(*) FILTER (WHERE operating_status = 'permanently_closed') AS closed
         FROM places GROUP BY 1 ORDER BY 1
     """)))
-    n_zip_out = n("""
+    zips = ", ".join(f"'{z}'" for z in config.ZIP3)
+    n_zip_out = n(f"""
         SELECT count(*) FROM places
-        WHERE postcode IS NOT NULL
-          AND left(postcode, 3) NOT IN ('100','101','102','103','104',
-                                        '110','111','112','113','114','116')
+        WHERE postcode IS NOT NULL AND left(postcode, 3) NOT IN ({zips})
     """)
-    w(f"\n{n_zip_out:,} places sit inside the boroughs but list a ZIP code outside "
-      "NYC, a sign the point or the address is wrong.\n")
+    w(f"\n{n_zip_out:,} places sit inside the city but list a ZIP code outside "
+      f"{config.CITY_SHORT}, a sign the point or the address is wrong.\n")
 
-    w("\n## Overture: category by borough\n")
+    w(f"\n## Overture: category by {config.AREA_LABEL}\n")
     w(md_table(q("""
         PIVOT (SELECT basic_category, boroname FROM places)
         ON boroname USING count(*) GROUP BY basic_category ORDER BY basic_category
@@ -261,7 +267,7 @@ def build_report(con, release, overture_file):
         ORDER BY borough, name
     """), max_chars=45))
 
-    w("\n## Parcels: religious building classes (PLUTO)\n")
+    w("\n## Parcels: religious building classes\n")
     m = q("""
         SELECT bldgclass, count(*) AS lots, count(*) FILTER (WHERE ownertype = 'X') AS owner_type_x,
                round(sum(bldgarea)) AS bldg_area_sqft
@@ -274,7 +280,7 @@ def build_report(con, release, overture_file):
     w(f"\nLand use 08 (public facilities and institutions): {n_lu8:,} lots. "
       f"Owner type X (fully exempt, privately owned): {n_x:,} lots.\n")
 
-    w("## Schools by borough\n")
+    w(f"## Schools by {config.AREA_LABEL}\n")
     w(md_table(q("""
         PIVOT (SELECT source, boroname FROM schools)
         ON boroname USING count(*) GROUP BY source ORDER BY source
@@ -290,7 +296,7 @@ def build_report(con, release, overture_file):
     w(f"- DuckDB: `{config.DB_PATH.relative_to(config.ROOT)}` "
       "(tables boroughs, city, overture_nyc, pluto, taxlots, parcels, schools; view places)")
     w(f"- Overture extract: `{overture_file.relative_to(config.ROOT)}`")
-    w("- Raw downloads: `data/nyc/raw/` (not committed)")
+    w(f"- Raw downloads: `data/{config.CITY}/raw/` (not committed)")
     return "\n".join(out) + "\n"
 
 
@@ -298,10 +304,17 @@ def main():
     config.RAW.mkdir(parents=True, exist_ok=True)
     release = config.OVERTURE_RELEASE or latest_overture_release()
     con = connect(config.DB_PATH)
-    print("boroughs ...");  load_boroughs(con)
-    print("overture ...");  overture_file = load_overture(con, release)
-    print("parcels ...");   load_parcels(con)
+    if config.CITY == "dc":
+        import dc
+        print("wards ...");     dc.load_boundary(con)
+        print("overture ...");  overture_file = load_overture(con, release)
+        print("parcels ...");   dc.load_parcels(con)
+    else:
+        print("boroughs ...");  load_boroughs(con)
+        print("overture ...");  overture_file = load_overture(con, release)
+        print("parcels ...");   load_parcels(con)
     print("schools ...");   load_schools(con)
+    config.REPORT_DIR.mkdir(parents=True, exist_ok=True)
     report = build_report(con, release, overture_file)
     (config.REPORT_DIR / "step1_report.md").write_text(report)
     print("\n" + report)

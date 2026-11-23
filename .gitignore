@@ -9,3 +9,4 @@ data/
 # Point-level outputs (names, addresses): the repo is public, the plan
 # publishes aggregates only.
 v0/private/
+v0/*/private/

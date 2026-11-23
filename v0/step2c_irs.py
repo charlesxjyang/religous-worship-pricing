@@ -27,15 +27,13 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 import config
-from common import connect, download, user_agent
+from common import assign_lots, connect, download, make_geocoder
 from names import tokens
 
-IRS_URL = "https://www.irs.gov/pub/irs-soi/eo_ny.csv"
-GEOSEARCH = "https://geosearch.planninglabs.nyc/v2/search"
+IRS_URL = f"https://www.irs.gov/pub/irs-soi/{config.IRS_FILE}"
 CACHE = config.DATA / "interim" / "irs_geosearch_cache.json"
 WORKERS = 4
 MIN_CONFIDENCE = 0.8
-NYC_ZIP3 = ("100", "101", "102", "103", "104", "110", "111", "112", "113", "114", "116")
 
 PO_BOX_RE = re.compile(r"^\s*(P\.?\s*O\.?\s*BOX|POB|BOX|PMB|P\.?O\.? DRAWER)\b", re.I)
 UNIT_RE = re.compile(r"\s+(APT|APARTMENT|STE|SUITE|UNIT|FL|FLR|FLOOR|RM|ROOM|PH|BSMT|#)\.?\s*[\w-]*.*$", re.I)
@@ -53,35 +51,10 @@ def kind_of(name: str, foundation: str) -> str:
     return "congregation" if foundation == "10" else "other"
 
 
-def geosearch(text, cache, lock):
-    with lock:
-        if text in cache:
-            return cache[text]
-    url = GEOSEARCH + "?" + urllib.parse.urlencode({"text": text, "size": 1})
-    hit = None
-    for attempt in range(3):
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": user_agent()})
-            with urllib.request.urlopen(req, timeout=30) as r:
-                feats = json.load(r).get("features", [])
-            if feats:
-                p, g = feats[0]["properties"], feats[0]["geometry"]["coordinates"]
-                pad = p.get("addendum", {}).get("pad", {})
-                hit = {"label": p.get("label"), "confidence": p.get("confidence"),
-                       "bbl": pad.get("bbl"), "bin": pad.get("bin"), "lon": g[0], "lat": g[1]}
-            break
-        except Exception:
-            time.sleep(2 ** attempt)
-    time.sleep(0.25)
-    with lock:
-        cache[text] = hit
-    return hit
-
-
 def main():
     con = connect(config.DB_PATH)
-    path = download(IRS_URL, config.RAW / "irs" / "eo_ny.csv")
-    zips = ", ".join(f"'{z}'" for z in NYC_ZIP3)
+    path = download(IRS_URL, config.RAW / "irs" / config.IRS_FILE)
+    zips = ", ".join(f"'{z}'" for z in config.ZIP3)
     rows = con.execute(f"""
         SELECT EIN, NAME, ICO IS NOT NULL AS has_care_of, STREET, CITY, left(ZIP, 5) AS zip5,
                "GROUP" <> '0000' AS group_exempt, SUBSECTION, FOUNDATION, NTEE_CD,
@@ -89,7 +62,7 @@ def main():
         FROM read_csv('{path}', all_varchar = true, header = true)
         WHERE left(ZIP, 3) IN ({zips}) AND (FOUNDATION = '10' OR NTEE_CD LIKE 'X%')
     """).fetchall()
-    print(f"{len(rows):,} religious organizations registered at NYC ZIP codes")
+    print(f"{len(rows):,} religious organizations registered at {config.CITY_SHORT} ZIP codes")
 
     cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
     lock = threading.Lock()
@@ -107,17 +80,19 @@ def main():
                    assets=int(assets) if assets else None, revenue=int(revenue) if revenue else None,
                    query=None, geo_label=None, geo_confidence=None, bbl=None, bin=None, lat=None, lon=None)
         if not po_box and re.match(r"^\d", base):
-            rec["query"] = f"{base}, {city} NY {zip5}"
+            rec["query"] = f"{base}, {city} {config.STATE} {zip5}"
             todo.append(rec)
         recs.append(rec)
 
     t0, done = time.monotonic(), [0]
+    geo = make_geocoder(con)
 
     def work(rec):
-        hit = geosearch(rec["query"], cache, lock)
-        if hit and (hit.get("confidence") or 0) >= MIN_CONFIDENCE and hit.get("bbl"):
+        hit = geo(rec["query"], cache, lock)
+        if hit and (hit.get("confidence") or 0) >= MIN_CONFIDENCE and (hit.get("bbl") or hit.get("lat")):
             rec.update(geo_label=hit["label"], geo_confidence=hit["confidence"],
-                       bbl=int(hit["bbl"]), bin=hit["bin"], lat=hit["lat"], lon=hit["lon"])
+                       bbl=int(hit["bbl"]) if hit.get("bbl") else None, bin=hit["bin"],
+                       lat=hit["lat"], lon=hit["lon"])
         with lock:
             done[0] += 1
             if done[0] % 1000 == 0:
@@ -137,6 +112,7 @@ def main():
         'BIGINT', 'VARCHAR', 'VARCHAR', 'DOUBLE', 'BIGINT', 'VARCHAR', 'DOUBLE', 'DOUBLE']))})")
     con.executemany(f"INSERT INTO irs_orgs VALUES ({', '.join('?' * len(cols))})",
                     [[r[c] for c in cols] for r in recs])
+    assign_lots(con, "irs_orgs", "ein")   # points without a parcel (DC's Census fallback)
     print(con.execute("""
         SELECT kind, count(*) AS orgs, count(*) FILTER (WHERE po_box) AS po_box,
                count(*) FILTER (WHERE street_unit IS NOT NULL) AS with_unit,

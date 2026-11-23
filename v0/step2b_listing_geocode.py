@@ -19,8 +19,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import config
-from common import connect
-from step2c_irs import geosearch
+from common import assign_lots, connect, make_geocoder
 
 CACHE = config.DATA / "interim" / "listing_geosearch_cache.json"
 WORKERS = 4
@@ -42,17 +41,20 @@ def main():
     cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
     lock = threading.Lock()
     out, t0, done = [], time.monotonic(), [0]
+    geo = make_geocoder(con)
 
     def work(r):
         pid, address, zip5, boro, lat, lon = r
         if not re.match(r"^\s*\d", address):
             rec = (pid, None, None, None, None, None, None, None, None)
         else:
-            q = f"{address}, {boro}" + (f" {zip5}" if zip5 and zip5.isdigit() else "")
-            hit = geosearch(q, cache, lock)
-            if hit and hit.get("bbl"):
+            hint = boro if config.CITY == "nyc" else f"Washington, {config.STATE}"
+            q = f"{address}, {hint}" + (f" {zip5}" if zip5 and zip5.isdigit() else "")
+            hit = geo(q, cache, lock)
+            if hit and (hit.get("bbl") or hit.get("lat")):
                 d = dist_m(lat, lon, hit["lat"], hit["lon"])
-                rec = (pid, q, hit["label"], hit["confidence"], int(hit["bbl"]), hit["bin"],
+                rec = (pid, q, hit["label"], hit["confidence"],
+                       int(hit["bbl"]) if hit.get("bbl") else None, hit["bin"],
                        hit["lat"], hit["lon"], d)
             else:
                 rec = (pid, q, None, None, None, None, None, None, None)
@@ -70,6 +72,7 @@ def main():
     con.execute("""CREATE OR REPLACE TABLE listing_geo (id VARCHAR, query VARCHAR, label VARCHAR,
                    confidence DOUBLE, bbl BIGINT, bin VARCHAR, lat DOUBLE, lon DOUBLE, shift_m DOUBLE)""")
     con.executemany("INSERT INTO listing_geo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", out)
+    assign_lots(con, "listing_geo", "id")   # points without a parcel (DC's Census fallback)
     print(con.execute(f"""
         SELECT count(*) AS listings,
                count(*) FILTER (WHERE confidence >= {MIN_CONFIDENCE}) AS confident,
