@@ -37,7 +37,7 @@ PRICE_IN, PRICE_OUT = 0.10, 0.50  # USD per million tokens, prompts under 100K
 MAX_SPEND_USD = 25.0            # hard cap for one run; raise deliberately
 MAX_SITE_CHARS = 40_000         # about 10K tokens of page text per site
 WORKERS = 8
-PROMPT_VERSION = "v0.1"
+PROMPT_VERSION = "v0.2"
 WEB_DIR = config.RAW / "web"
 OUT_DIR = config.DATA / "interim" / "extract"
 
@@ -107,12 +107,14 @@ The study cares about WHERE PEOPLE PHYSICALLY GATHER for worship, not where the 
 - gathering_locations: places where services are held in person. Signals: "we meet at", "services are held at", "worship location", "join us at", "our sanctuary", a map or directions to services, an address given with service times. A church that meets in a school, another church, a storefront, a hotel or a home names that venue here.
 - mailing_or_office_address: a P.O. box, "mailing address", "office", "administrative office", a pastor's or registered address. Do not list it as a gathering location unless the site also says services are held there.
 - If the site gives one street address as the congregation's location with no sign it is only for mail, treat it as a gathering location with venue_kind "own_building" if the site suggests the congregation has its own building, else "unknown".
+- "Church office" or "parish office" at the church's own street address is not a sign the address is only for mail: if the site holds in-person services and gives no other street address for them, list that address as a gathering location too (and as mailing_or_office_address if labelled office).
+- A parish or congregation with several churches, chapels or campuses: list each as its own gathering location and extract the services of every one of them, not only the first.
 
 venue_kind: own_building (its own church, mosque, synagogue or temple); another_congregation (a different congregation's building, e.g. "we worship at St. Mark's", "hosted by"); public_school (P.S., I.S., J.H.S., M.S., H.S., a named public or charter school); private_school; commercial_space (storefront, office floor or suite, retail or industrial building); community_or_other_institution (hotel, theater, community center, college, YMCA, library, funeral home); home; online_only; unknown.
 
 site_match: compare the website with the listing given (name, address, phone). "yes" if the site shows the listing's address or phone; "likely" if the name matches and the site places the congregation in New York City but shows neither; "no" if the site belongs to a different congregation or city (namesakes are common), or is a directory, denomination office, school or business rather than the congregation; "unclear" otherwise. If "no", leave gathering_locations, services and shares_space_with empty.
 
-services: regular services only, each with a stated day and start time. Do not infer times. Skip one-off events, holidays, classes, Bible studies, choir practice and meetings. Use type "main_worship" for the gatherings most members attend: Catholic weekend Masses including the Saturday vigil; Protestant Sabbath or Sunday services; Orthodox Divine Liturgy; Jewish Shabbat services on Friday evening and Saturday morning; Muslim Jumu'ah sessions, one entry per session; for Hindu, Buddhist and Sikh temples the main weekly gathering. Use "weekday_worship" for weekday Masses, midweek services or Vespers, "daily_prayer" for daily minyanim or daily iqama times (one entry per day and time only if listed), "other" for anything else. Each language Mass or service is its own entry. location_id links a service to a gathering location when the site says where it happens.
+services: regular services only, each with a stated day and start time. Do not infer times. Skip one-off events, holidays, classes, Bible studies, choir practice and meetings. Use type "main_worship" for the gatherings most members attend: Catholic Sunday Masses and the Saturday vigil (a Saturday Mass from about 3 pm on; Saturday morning Masses are weekday_worship); Protestant Sabbath or Sunday services; Orthodox Divine Liturgy; Jewish Shabbat services on Friday evening and Saturday morning; Muslim Jumu'ah sessions, one entry per session; for Hindu, Buddhist and Sikh temples the main weekly gathering. Use "weekday_worship" for weekday Masses, midweek services or Vespers, "daily_prayer" for daily minyanim or daily iqama times (one entry per day and time only if listed), "other" for anything else. Each language Mass or service is its own entry. location_id links a service to a gathering location when the site says where it happens; when schedules are listed under each church or campus, set it on every service. A dated event ("February 1, 2026 10:00am", a past year) is not evidence of a weekly service unless the page also says it recurs.
 
 shares_space_with: other congregations the site says use the same building, either hosted by this one or hosting it.
 
@@ -120,19 +122,35 @@ Every evidence field must be a short quote, under 30 words, copied exactly from 
 
 
 def load_site_text(site: dict) -> tuple[str, bool]:
-    """Join a site's pages, dropping lines (menus, footers) already seen."""
+    """Join a site's pages, dropping menus and footers repeated from earlier pages.
+
+    Only runs of MIN_RUN or more consecutive lines that all appeared on an
+    earlier page are dropped. Dropping every repeated line would also strip
+    short labels such as "Sunday:" from a second church's schedule, leaving
+    its times without days.
+    """
+    MIN_RUN = 3
     seen, parts, total, cut = set(), [], 0, False
     for i, p in enumerate(site["pages"]):
         text = p.get("text")
         if not text:
             continue
-        keep = []
-        for line in text.splitlines():
-            k = line.strip().lower()
-            if k in seen and len(k) < 200:
+        lines = text.splitlines()
+        keys = [line.strip().lower() for line in lines]
+        old = [bool(k) and k in seen for k in keys]
+        keep, j = [], 0
+        while j < len(lines):
+            if not old[j]:
+                keep.append(lines[j])
+                j += 1
                 continue
-            seen.add(k)
-            keep.append(line)
+            run_end = j
+            while run_end < len(lines) and (old[run_end] or not keys[run_end]):
+                run_end += 1
+            if sum(old[j:run_end]) < MIN_RUN:
+                keep.extend(lines[j:run_end])
+            j = run_end
+        seen.update(k for k in keys if k)
         body = "\n".join(keep)
         ld = "\n".join(p.get("jsonld") or [])
         block = f"=== PAGE {i + 1} ({p.get('role')}): {p.get('final_url') or p.get('url')} ===\n{body}"
@@ -168,7 +186,7 @@ def quote_ok(quote: str | None, haystack_norm: str) -> bool:
 
 def verify(result: dict, text: str) -> dict:
     hay = norm(text)
-    stats = Counter()
+    stats, dropped = Counter(), {}
     for key in ("services", "gathering_locations", "shares_space_with"):
         kept = []
         for item in result.get(key, []):
@@ -176,12 +194,14 @@ def verify(result: dict, text: str) -> dict:
             stats[f"{key}_{'ok' if ok else 'dropped'}"] += 1
             if ok:
                 kept.append(item)
+            else:
+                dropped.setdefault(key, []).append(item)  # kept for audit, unused downstream
         result[key] = kept
     if result.get("mailing_or_office_address") and not quote_ok(result.get("mailing_evidence"), hay):
         stats["mailing_dropped"] += 1
         result["mailing_or_office_address"] = None
     result["schedule_found"] = bool(result.get("services"))
-    return {"result": result, "verification": dict(stats)}
+    return {"result": result, "verification": dict(stats), "dropped": dropped}
 
 
 def listing_block(rows) -> str:
@@ -194,6 +214,7 @@ def listing_block(rows) -> str:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--effort", default="medium", choices=["low", "medium", "high"])
     ap.add_argument("--estimate", action="store_true", help="estimate tokens and cost; no API calls")
     args = ap.parse_args()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -253,9 +274,9 @@ def main():
                 f"Pages{' (cut to fit)' if cut else ''}:\n\n{text}")
         try:
             resp = client.messages.create(
-                model=MODEL, max_tokens=8000, system=SYSTEM,
+                model=MODEL, max_tokens=16000, system=SYSTEM,
                 messages=[{"role": "user", "content": user}],
-                output_config={"effort": "medium",
+                output_config={"effort": args.effort,
                                "format": {"type": "json_schema", "schema": SCHEMA}},
             )
         except anthropic.BadRequestError as e:
