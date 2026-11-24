@@ -37,10 +37,9 @@ Status:
 - [x] Step 2: places and schools attached to lots; lots flagged.
 - [x] Step 3: recall check.
 - [x] Step 4a: websites crawled (`data/nyc/raw/web/`).
-- [x] Step 4b: extraction (prompt v0.2) done for NYC and DC in a separate
-  session that had the key (about $5.20 in all). Charlotte: not yet; its
-  reports are on listing lots only (estimate $0.73).
-- [x] Step 4c–6 rerun after extraction for NYC and DC.
+- [x] Step 4b: extraction (prompt v0.2) rerun for all five cities on
+  2026-11-24 ($7.92 in all: NYC $3.96, Houston $1.91, DC $0.81, Charlotte
+  $0.75, SF $0.49); steps 4c–6, the analyses and the price test rerun after it.
 - Only a session that has run extraction holds its results (data/ is not in
   git): do not regenerate a city's committed reports from a database without
   them, or the post-extraction numbers are overwritten.
@@ -66,7 +65,15 @@ Status:
   SF prices only retail and office parcels sold since 2015 (Proposition 13 keeps
   older assessments near the purchase price). The script also checks each
   city's slope against ZIP income and building size. `PRICE_CITIES=nyc,dc`
-  runs a subset.
+  runs a subset. For comparisons across cities it adds the value of retail and
+  office floor space per sq ft, scaled to 2021+ sale prices where published
+  (NYC DOF market values x2.42, Charlotte x1.31, DC x1.02; Houston cannot be
+  checked); assessed land values are not comparable between cities.
+- [x] Occupancy and utilization (Charles, 2026-11-24): `v0/analysis_utilization.py`
+  (congregations per worship space, weekly hours of worship) after the price
+  test. `v0/export_worship_table.py --all` writes one private row per
+  congregation (address, services, building, co-located uses, prices) to
+  `<city>_worship_places.csv` in each private folder.
 
 ## Cities
 
@@ -117,7 +124,9 @@ A new cloud session gets environment variables (the API key) but not
 .venv/bin/python v0/step4_geocode.py
 .venv/bin/python v0/step5_colocate.py
 .venv/bin/python v0/step6_report.py
-.venv/bin/python v0/analysis_price.py  # all three cities, after analysis_sharing/services for each
+.venv/bin/python v0/analysis_price.py  # all five cities, after analysis_sharing/services for each
+.venv/bin/python v0/analysis_utilization.py
+.venv/bin/python v0/export_worship_table.py --all
 ```
 
 Only one process can open a city's DuckDB file at a time; run steps in order.

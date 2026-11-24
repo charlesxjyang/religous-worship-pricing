@@ -174,8 +174,9 @@ def main():
                      ("Easy to build (Houston, Charlotte)", o[o.group == "easy"])):
         if sub.empty:
             continue
-        m = smf.ols("lhours ~ locc + C(city) + C(tradition)", data=sub.dropna(subset=["lhours"])).fit(
-            cov_type="cluster", cov_kwds={"groups": pd.factorize(sub.dropna(subset=["lhours"])["city"] + sub.dropna(subset=["lhours"])["area_id"].astype(str))[0]})
+        sub = sub.dropna(subset=["lhours", "area_id"])
+        m = smf.ols("lhours ~ locc + C(city) + C(tradition)", data=sub).fit(
+            cov_type="cluster", cov_kwds={"groups": pd.factorize(sub["city"] + sub["area_id"].astype(str))[0]})
         rows.append({"sample": lab, "hours elasticity to congregations": f"{m.params['locc']:.2f} ({m.bse['locc']:.2f})",
                      "spaces": f"{int(m.nobs):,}", "shared spaces": f"{int((sub.occupancy >= 2).sum()):,}"})
     w.append(md(rows, list(rows[0])))
