@@ -23,4 +23,5 @@ $py v0/step4_geocode.py
 $py v0/step5_colocate.py
 $py v0/step6_report.py > /dev/null
 $py v0/analysis_sharing.py > /dev/null
+$py v0/analysis_services.py > /dev/null
 echo "done: CITY=$CITY reports written"
