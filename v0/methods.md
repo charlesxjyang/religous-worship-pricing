@@ -50,9 +50,16 @@ so two different "First Baptist" churches are never merged.
 
 ## The two measures
 
-- **Sharing**: a congregation's lot (or, stricter, its building) holds at least one
-  other congregation after merging. Reported with and without IRS corroboration (two
-  or more congregations registered there).
+- **Sharing**: two distinct congregations use the same worship space: another
+  congregation in the same building (NYC: building ID; DC and Charlotte: building
+  footprint), when the building is not split into units, or the congregation's own
+  website says it shares space. Congregations in separate units of one strip mall,
+  office, flex or apartment building are co-tenants and count as separate places of
+  worship. Reported with and without IRS corroboration.
+- **Multi-use**: the number of distinct bodies using a congregation's worship space:
+  1, plus each other congregation sharing it, plus a school that is not its own, plus
+  a rented hall (community center, hotel). A church alone is 1; with a nesting
+  congregation or a charter school in its building, 2.
 - **Other use**: the building is not a religious building or the congregation's own
   school. Two checks keep this honest:
   - *Homes.* A house or apartment counts as a gathering place only if nothing

@@ -46,10 +46,11 @@ def build(con):
     con.execute(f"""
         CREATE OR REPLACE TABLE cong_sites AS
         WITH listing AS (
-          SELECT g.*, c.cong_id, i.irs_kind, i.basis AS irs_basis
+          SELECT g.*, c.cong_id, i.irs_kind, i.basis AS irs_basis, pc.shares_text AS site_shares_text
           FROM place_gathering g
           JOIN place_cong c USING (id)            -- already excludes closed and non-congregations
           LEFT JOIN place_irs i USING (id)
+          LEFT JOIN (SELECT id, shares_text FROM place_colocation) pc USING (id)
         ), cong AS (
           SELECT cong_id,
                  any_value(gathering_bbl) AS bbl,
@@ -64,12 +65,16 @@ def build(con):
                  bool_or(basic_category <> 'religious_organization') AS worship_category,
                  bool_or(irs_kind = 'congregation') AS irs_congregation,
                  bool_or(irs_kind = 'congregation' AND irs_basis = 'lot') AS irs_on_same_lot,
-                 bool_or(address_basis = 'website') AS from_website
+                 bool_or(address_basis = 'website') AS from_website,
+                 -- its own website says it shares space or meets at another congregation
+                 bool_or(coalesce(site_shares_text IS NOT NULL, false)
+                         OR coalesce(venue_kind = 'another_congregation', false)) AS site_says_shared
           FROM listing GROUP BY cong_id
         )
         SELECT c.*,
                (c.worship_category OR c.irs_congregation) AND c.confidence >= 0.5 AS headline,
                f.bldgclass, f.landuse_label, f.religious_owned, f.n_schools,
+               f.commercial_use, f.residential_use,
                p.numbldgs, {USE_GROUP} AS building_use
         FROM cong c
         LEFT JOIN lot_flags f ON f.bbl = c.bbl
@@ -85,16 +90,36 @@ def build(con):
           SELECT bin, count(DISTINCT ein) AS irs_congs_bin FROM irs_orgs
           WHERE kind = 'congregation' AND bin IS NOT NULL AND bin NOT LIKE '%000000' GROUP BY 1
         )
-        SELECT s.*,
-               count(*) FILTER (WHERE s.headline) OVER (PARTITION BY s.bbl) - (s.headline::INT) AS others_headline,
-               count(*) OVER (PARTITION BY s.bbl) - 1 AS others_all,
-               CASE WHEN s.bin IS NOT NULL AND s.bin NOT LIKE '%000000'   -- x000000 = no real building
-                    THEN count(*) FILTER (WHERE s.headline) OVER (PARTITION BY s.bin) - (s.headline::INT)
-               END AS others_same_building,
-               coalesce(il.irs_congs, 0) AS irs_congregations_on_lot,
-               coalesce(ib.irs_congs_bin, 0) AS irs_congregations_in_building,
-               s.building_use <> 'religious building only' AS other_use
-        FROM cong_sites s LEFT JOIN irs_lot il USING (bbl) LEFT JOIN irs_bin ib USING (bin)
+        , x AS (
+          SELECT s.*,
+                 -- the building: NYC's BIN or a footprint ("ov:") elsewhere; else the lot
+                 CASE WHEN s.bin IS NOT NULL AND s.bin NOT LIKE '%000000' THEN s.bin   -- x000000 = no real BIN
+                      ELSE 'lot:' || s.bbl END AS space_key,
+                 count(*) FILTER (WHERE s.headline) OVER (PARTITION BY s.bbl) - (s.headline::INT) AS others_headline,
+                 count(*) OVER (PARTITION BY s.bbl) - 1 AS others_all,
+                 CASE WHEN s.bin IS NOT NULL AND s.bin NOT LIKE '%000000'
+                      THEN count(*) FILTER (WHERE s.headline) OVER (PARTITION BY s.bin) - (s.headline::INT)
+                 END AS others_same_building,
+                 coalesce(il.irs_congs, 0) AS irs_congregations_on_lot,
+                 coalesce(ib.irs_congs_bin, 0) AS irs_congregations_in_building,
+                 -- a building split into units: each congregation has its own storefront,
+                 -- office, warehouse bay or flat, so co-located congregations are co-tenants
+                 coalesce(s.commercial_use, false) OR coalesce(s.residential_use, false)
+                   OR left(coalesce(s.bldgclass, ''), 1) IN ('E', 'F', 'G', 'L') AS multi_unit,
+                 s.building_use <> 'religious building only' AS other_use
+          FROM cong_sites s LEFT JOIN irs_lot il USING (bbl) LEFT JOIN irs_bin ib USING (bin)
+        ), y AS (
+          SELECT x.*, count(*) FILTER (WHERE headline) OVER (PARTITION BY space_key) - headline::INT AS others_space
+          FROM x
+        )
+        SELECT y.*,
+               -- shares worship space: another congregation in the same building, unless
+               -- the building is split into units; or its website says it shares space
+               coalesce(site_says_shared, false) OR (others_space >= 1 AND NOT multi_unit) AS shares_space,
+               others_space >= 1 AND multi_unit AND NOT coalesce(site_says_shared, false) AS cotenant,
+               CASE WHEN space_key LIKE 'lot:%' OR space_key LIKE 'ov:%' THEN irs_congregations_on_lot
+                    ELSE irs_congregations_in_building END AS irs_congregations_in_space
+        FROM y
     """)
     # Check homes (mailing address?) and schools (the congregation's own?).
     checks.home_checks(con)
@@ -151,34 +176,36 @@ def analysis(con) -> str:
 
     # ---- 1. shared with other congregations
     s = one("""
-        SELECT count(*) FILTER (WHERE others_headline >= 1),
-               count(*) FILTER (WHERE others_headline >= 1 AND irs_congregations_on_lot >= 2),
-               count(*) FILTER (WHERE others_same_building >= 1),
-               count(*) FILTER (WHERE others_same_building >= 1 AND irs_congregations_in_building >= 2),
-               count(*) FILTER (WHERE others_same_building IS NOT NULL)
+        SELECT count(*) FILTER (WHERE shares_space),
+               count(*) FILTER (WHERE shares_space AND irs_congregations_in_space >= 2),
+               count(*) FILTER (WHERE cotenant),
+               count(*) FILTER (WHERE others_headline >= 1),
+               count(*) FILTER (WHERE space_key NOT LIKE 'lot:%')
         FROM cong_sharing WHERE headline""")
     pct = lambda x: f"{100 * x / n:.1f}%"  # noqa: E731
-    w("## 1. Congregations sharing a building with other congregations\n")
-    rows = [("Same tax lot as at least one other congregation", s[0]),
-            ("... and the IRS shows 2+ congregations registered on the lot", s[1])]
-    if s[4]:  # building IDs exist (NYC's BIN); DC's records have none
-        rows += [("Same building (BIN) as at least one other congregation", s[2]),
-                 ("... and the IRS shows 2+ registered in the building", s[3])]
+    w("## 1. Congregations sharing worship space with other congregations\n")
+    w("Sharing means two distinct congregations using the same worship space: another "
+      "congregation in the same building, where the building is not split into units, or the "
+      "congregation's own website saying it shares space or meets at another congregation. "
+      "Congregations in separate units of one store, office, industrial or apartment building "
+      "are co-tenants: separate places of worship, not sharing.\n")
+    rows = [("Shares worship space with another congregation", s[0]),
+            ("... and the IRS shows 2+ congregations registered there", s[1]),
+            ("Co-tenant: another congregation in a separate unit of the same building", s[2]),
+            ("For reference: same tax lot as another congregation", s[3])]
     import pandas as pd
     w(md_table(pd.DataFrame([(t, c, pct(c)) for t, c in rows], columns=["test", "congregations", "share"])))
-    bin_note = (f"Building IDs (BIN) come from geocoding the listing's street address; {s[4]:,} of "
-                f"{n:,} congregations have one, so the building rows are a floor. " if s[4] else
-                "This city's parcel records carry no building IDs, so only the lot test is "
-                "available; a lot can hold more than one building. ")
-    w("\n" + bin_note + "The lot row is an upper bound: a congregation listed twice under "
-      "unrelated names still looks like two. The IRS-corroborated rows are closer to lower "
-      "bounds, since many congregations are registered at another address or not at all. "
-      "Lots with 2+ congregations, by how many share:\n")
+    bsrc = "building IDs (BIN) from geocoding" if config.CITY == "nyc" else "building footprints (Overture)"
+    w(f"\n{s[4]:,} of {n:,} congregations are placed in a building, from {bsrc}; the rest are "
+      "judged by their lot. The sharing row is an upper bound in one way (two listings for one "
+      "congregation under unrelated names still look like two) and the IRS row a lower bound "
+      "(many congregations are registered elsewhere or not at all). Buildings with shared "
+      "worship space, by how many congregations share it:\n")
     w(md_table(q("""
-        SELECT CASE WHEN others_headline + 1 >= 5 THEN '5 or more' ELSE (others_headline + 1)::VARCHAR END
-                 AS congregations_on_lot,
-               count(DISTINCT bbl) AS lots, count(*) AS congregations
-        FROM cong_sharing WHERE headline AND others_headline >= 1 GROUP BY 1 ORDER BY 1
+        SELECT CASE WHEN others_space + 1 >= 5 THEN '5 or more' ELSE (others_space + 1)::VARCHAR END
+                 AS congregations_in_space,
+               count(DISTINCT space_key) AS buildings, count(*) AS congregations
+        FROM cong_sharing WHERE headline AND shares_space AND others_space >= 1 GROUP BY 1 ORDER BY 1
     """)))
 
     # ---- 2. building also used for other purposes
@@ -197,7 +224,8 @@ def analysis(con) -> str:
     w(md_table(q(f"""
         SELECT building_use, count(*) AS congregations,
                round(100 * count(*) / {n}, 1) AS pct,
-               count(*) FILTER (WHERE others_headline >= 1) AS also_shared_with_other_congregations,
+               count(*) FILTER (WHERE shares_space) AS sharing_worship_space,
+               count(*) FILTER (WHERE cotenant) AS cotenants,
                count(*) FILTER (WHERE irs_on_same_lot) AS irs_registered_on_lot
         FROM cong_sharing WHERE headline GROUP BY 1 ORDER BY 2 DESC
     """)))
@@ -231,8 +259,8 @@ def analysis(con) -> str:
     w("\n## Both questions together\n")
     w(md_table(q(f"""
         SELECT CASE WHEN other_use THEN 'other-use building' ELSE 'religious building only' END AS building,
-               count(*) FILTER (WHERE others_headline = 0) AS alone_on_lot,
-               count(*) FILTER (WHERE others_headline >= 1) AS with_other_congregations,
+               count(*) FILTER (WHERE NOT shares_space) AS not_sharing,
+               count(*) FILTER (WHERE shares_space) AS sharing_worship_space,
                count(*) AS total
         FROM cong_sharing WHERE headline GROUP BY 1 ORDER BY 1 DESC
     """)))
@@ -244,9 +272,9 @@ def analysis(con) -> str:
     w("## By tradition\n")
     w(md_table(q("""
         SELECT tradition, count(*) AS congregations,
-               round(100 * avg((others_headline >= 1)::INT), 0) AS pct_sharing,
+               round(100 * avg(shares_space::INT), 0) AS pct_sharing,
                round(100 * avg(other_use::INT), 0) AS pct_other_use_building,
-               round(100 * avg((others_headline >= 1 OR other_use)::INT), 0) AS pct_either
+               round(100 * avg((shares_space OR other_use)::INT), 0) AS pct_either
         FROM cong_sharing WHERE headline GROUP BY 1 HAVING count(*) >= 15 ORDER BY 2 DESC
     """)))
     w("\nTradition comes from the congregation's own website where extraction read one, else "
@@ -255,9 +283,9 @@ def analysis(con) -> str:
     w(f"## By {config.AREA_LABEL}\n")
     w(md_table(q(f"""
         SELECT borough AS "{config.AREA_LABEL}", count(*) AS congregations,
-               round(100 * avg((others_headline >= 1)::INT), 0) AS pct_sharing,
+               round(100 * avg(shares_space::INT), 0) AS pct_sharing,
                round(100 * avg(other_use::INT), 0) AS pct_other_use_building,
-               round(100 * avg((others_headline >= 1 OR other_use)::INT), 0) AS pct_either
+               round(100 * avg((shares_space OR other_use)::INT), 0) AS pct_either
         FROM cong_sharing WHERE headline GROUP BY 1 ORDER BY 1
     """)))
 
@@ -265,16 +293,15 @@ def analysis(con) -> str:
     w("\n## How the population changes the answer\n")
     w(md_table(q("""
         WITH v AS (
-          SELECT 'Headline (worship categories, confidence 0.5+)' AS population, *,
-                 others_headline AS others FROM cong_sharing WHERE headline
+          SELECT 'Headline (worship categories, confidence 0.5+)' AS population, * FROM cong_sharing WHERE headline
           UNION ALL
-          SELECT 'All listings, any category or confidence', *, others_all FROM cong_sharing
+          SELECT 'All listings, any category or confidence', * FROM cong_sharing
           UNION ALL
-          SELECT 'Headline, IRS-registered congregations only', *, others_headline
+          SELECT 'Headline, IRS-registered congregations only', *
           FROM cong_sharing WHERE headline AND irs_congregation
         )
         SELECT population, count(*) AS congregations,
-               round(100 * avg((others >= 1)::INT), 1) AS pct_sharing,
+               round(100 * avg(shares_space::INT), 1) AS pct_sharing,
                round(100 * avg(other_use::INT), 1) AS pct_other_use_building
         FROM v GROUP BY 1 ORDER BY 2 DESC
     """)))

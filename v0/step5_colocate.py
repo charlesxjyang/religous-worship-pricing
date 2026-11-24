@@ -27,7 +27,13 @@ import config
 from common import connect
 from names import names_match
 
-MAX_SHIFT_M = 150  # trust the listing's geocoded address over its map point up to this far
+MAX_SHIFT_M = 150
+# A building split into units (each congregation in its own storefront, office,
+# warehouse bay or flat): congregations in it are co-tenants, not sharing space.
+MULTI_UNIT = ("(coalesce(f.commercial_use, false) OR coalesce(f.residential_use, false) "
+              "OR left(coalesce(f.bldgclass, ''), 1) IN ('E', 'F', 'G', 'L'))")
+SITE_SHARED = ("coalesce(g.venue_kind = 'another_congregation', false) "
+               "OR (g.site_ok AND sh.shares_text IS NOT NULL)")  # trust the listing's geocoded address over its map point up to this far
 
 TRADITION_FROM_TAXONOMY = """
     CASE
@@ -41,6 +47,46 @@ TRADITION_FROM_TAXONOMY = """
       WHEN taxonomy_primary = 'sikh_place_of_worship' THEN 'Sikh'
       ELSE 'Unknown' END
 """
+
+
+def assign_buildings(con):
+    """Give each place a building where the geocoder gave no BIN (DC, Charlotte).
+
+    The meeting point is the website's geocoded address when the lot came from
+    the website, else the listing's map point if it lies on the lot, else the
+    geocoded listing address. Its building is the footprint containing it, or
+    the nearest footprint touching the lot within 40 m. Stored as "ov:<id>".
+    """
+    if not con.execute("SELECT count(*) FROM duckdb_tables() WHERE table_name = 'buildings'").fetchone()[0]:
+        return
+    con.execute("""
+        CREATE OR REPLACE TEMP TABLE _gpt AS
+        WITH lot AS (SELECT bbl, ST_Union_Agg(geom) AS geom FROM taxlots GROUP BY bbl)
+        SELECT g.id, lot.geom AS lot_geom,
+               CASE WHEN g.address_basis = 'website' AND g.g_lat IS NOT NULL THEN ST_Point(g.g_lon, g.g_lat)
+                    WHEN lot.geom IS NOT NULL AND ST_Contains(lot.geom, p.geom) THEN p.geom
+                    WHEN lg.lat IS NOT NULL THEN ST_Point(lg.lon, lg.lat)
+                    ELSE p.geom END AS pt
+        FROM place_gathering g JOIN places p USING (id)
+        LEFT JOIN listing_geo lg USING (id)
+        LEFT JOIN lot ON lot.bbl = g.gathering_bbl
+        WHERE g.gathering_bin IS NULL
+    """)
+    con.execute("""
+        CREATE OR REPLACE TEMP TABLE _bhit AS
+        SELECT p.id, arg_min(b.bid, ST_Area(b.geom)) AS bid
+        FROM _gpt p JOIN buildings b ON ST_Contains(b.geom, p.pt) GROUP BY p.id
+    """)
+    con.execute("""
+        INSERT INTO _bhit
+        SELECT p.id, arg_min(b.bid, ST_Distance(b.geom, p.pt))
+        FROM _gpt p JOIN buildings b ON ST_DWithin(b.geom, p.pt, 0.0005)
+        WHERE p.id NOT IN (SELECT id FROM _bhit)
+          AND (p.lot_geom IS NULL OR ST_Intersects(b.geom, p.lot_geom))
+        GROUP BY p.id
+    """)
+    con.execute("""UPDATE place_gathering SET gathering_bin = 'ov:' || h.bid
+                   FROM _bhit h WHERE place_gathering.id = h.id AND place_gathering.gathering_bin IS NULL""")
 
 
 def match_irs(con):
@@ -196,6 +242,7 @@ def main():
           -- listing's own lot, then the site's primary, then by order given.
           SELECT b.id, l.location_id, l.address AS g_address, l.venue_name, l.venue_kind,
                  l.evidence AS g_evidence, g.bbl AS g_bbl, g.bin AS g_bin, g.method AS g_method, g.label AS g_label,
+                 g.lat AS g_lat, g.lon AS g_lon,
                  g.outside_nyc,
                  row_number() OVER (PARTITION BY b.id ORDER BY
                      (g.bbl = b.listing_bbl) DESC NULLS LAST, (g.bbl IS NOT NULL) DESC,
@@ -210,6 +257,7 @@ def main():
                     THEN b.tradition_site ELSE b.tradition_overture END AS tradition,
                l.location_id, l.g_address, l.venue_name, l.venue_kind, l.g_evidence, l.g_method,
                l.g_label, l.outside_nyc, coalesce(l.n_site_locations, 0) AS n_site_locations,
+               l.g_lat, l.g_lon,
                l.g_bbl,
                CASE WHEN l.g_bbl IS NOT NULL THEN 'website' ELSE 'listing' END AS address_basis,
                coalesce(l.g_bbl, b.listing_bbl) AS gathering_bbl,
@@ -224,6 +272,7 @@ def main():
         FROM base b LEFT JOIN locs l ON l.id = b.id AND l.rk = 1
     """)
 
+    assign_buildings(con)
     match_irs(con)
     assign_congregations(con)
 
@@ -243,13 +292,17 @@ def main():
         GROUP BY g.id
     """)
 
-    con.execute("""
+    con.execute(f"""
         CREATE OR REPLACE TABLE place_colocation AS
         WITH active AS (
           SELECT g.*, c.cong_id FROM place_gathering g JOIN place_cong c USING (id)
         ), per_lot AS (
           SELECT gathering_bbl, count(DISTINCT cong_id) AS n_congregations,
                  string_agg(DISTINCT name, ' | ') AS names_on_lot
+          FROM active GROUP BY 1
+        ), per_bldg AS (    -- the building where known (BIN or footprint), else the lot
+          SELECT coalesce(nullif(gathering_bin, ''), 'lot:' || gathering_bbl) AS space,
+                 count(DISTINCT cong_id) AS n_in_building
           FROM active GROUP BY 1
         ), shares AS (
           SELECT site_key, string_agg(relation || ': ' || name, '; ') AS shares_text
@@ -269,10 +322,16 @@ def main():
                i.ein, i.irs_name, i.irs_kind, i.basis AS irs_match_basis,
                coalesce(ol.osm_buildings, 0) AS osm_religious_buildings_on_lot, ol.osm_classes,
                CASE WHEN g.site_ok THEN sh.shares_text END AS shares_text,
+               coalesce(pb.n_in_building, 1) AS n_congregations_in_building,
+               {MULTI_UNIT} AS multi_unit_building,
+               -- Shared worship space: another congregation in the same building, unless the
+               -- building is split into units (store, office, industrial, apartments), where
+               -- each congregation has its own unit; or the website says it shares space.
+               ({SITE_SHARED}) OR (coalesce(pb.n_in_building, 1) >= 2 AND NOT {MULTI_UNIT}) AS shares_space,
+               coalesce(pb.n_in_building, 1) >= 2 AND {MULTI_UNIT} AND NOT ({SITE_SHARED}) AS cotenant,
                CASE
                  WHEN f.n_schools > 0 OR g.venue_kind IN ('public_school', 'private_school') THEN 'school'
-                 WHEN coalesce(pl.n_congregations, 1) >= 2 OR g.venue_kind = 'another_congregation'
-                      OR (g.site_ok AND sh.shares_text IS NOT NULL) THEN 'shared'
+                 WHEN ({SITE_SHARED}) OR (coalesce(pb.n_in_building, 1) >= 2 AND NOT {MULTI_UNIT}) THEN 'shared'
                  WHEN (f.commercial_use AND NOT f.religious_owned) OR g.venue_kind = 'commercial_space' THEN 'commercial'
                  WHEN f.religious_owned THEN 'single-use'
                  ELSE 'unknown' END AS colocation,
@@ -281,8 +340,10 @@ def main():
                  CASE WHEN g.venue_kind IN ('public_school', 'private_school', 'another_congregation',
                                             'commercial_space', 'home', 'community_or_other_institution')
                       THEN 'website says venue is ' || g.venue_kind END,
-                 CASE WHEN coalesce(pl.n_congregations, 1) >= 2
-                      THEN pl.n_congregations || ' congregations on lot' END,
+                 CASE WHEN coalesce(pb.n_in_building, 1) >= 2 AND NOT {MULTI_UNIT}
+                      THEN pb.n_in_building || ' congregations in the building' END,
+                 CASE WHEN coalesce(pb.n_in_building, 1) >= 2 AND {MULTI_UNIT}
+                      THEN pb.n_in_building || ' congregations in separate units of the building' END,
                  CASE WHEN g.site_ok AND sh.shares_text IS NOT NULL THEN 'website: ' || sh.shares_text END,
                  CASE WHEN f.commercial_use AND NOT f.religious_owned THEN 'commercial lot (' || f.landuse_label || ')' END,
                  CASE WHEN f.religious_owned THEN 'religious-owned lot (' || coalesce(f.bldgclass, '') || ', ' || coalesce(f.ownername, '') || ')' END
@@ -290,6 +351,7 @@ def main():
         FROM place_gathering g
         LEFT JOIN lot_flags f ON f.bbl = g.gathering_bbl
         LEFT JOIN per_lot pl ON pl.gathering_bbl = g.gathering_bbl
+        LEFT JOIN per_bldg pb ON pb.space = coalesce(nullif(g.gathering_bin, ''), 'lot:' || g.gathering_bbl)
         LEFT JOIN shares sh ON sh.site_key = g.site_key
         LEFT JOIN irs_lot il ON il.bbl = g.gathering_bbl
         LEFT JOIN ein_lot el ON el.gathering_bbl = g.gathering_bbl

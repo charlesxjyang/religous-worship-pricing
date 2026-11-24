@@ -75,6 +75,15 @@ Outputs: NYC in `v0/`, others in `v0/<city>/`, each with a gitignored
 In DC and Charlotte a lot with a religious tax exemption counts as a religious
 building whatever its use code (the exemption requires religious use).
 
+**Sharing and multi-use** (Charles, 2026-11-24). Sharing means two distinct
+congregations using the same worship space: another congregation in the same
+*building* (NYC: BIN; DC and Charlotte: Overture building footprint, step 2e),
+where the building is not split into units, or the congregation's website says
+it shares space. Congregations in separate units of one strip mall, office,
+flex, industrial or apartment building are **co-tenants**: separate places of
+worship, not sharing. Multi-use = 1 + each congregation sharing the space + a
+school that is not its own + a rented hall. A house church counts 1.
+
 A new cloud session gets environment variables (the API key) but not
 `data/`, which is gitignored: rebuild with `v0/run_city.sh` first.
 

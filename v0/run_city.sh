@@ -19,6 +19,7 @@ if [ "${2:-}" != "--after-extract" ]; then
   $py v0/step4_crawl.py
   $py v0/step4_extract.py --estimate
 fi
+$py v0/step2e_buildings.py   # footprints where there are no building IDs (DC, Charlotte)
 $py v0/step4_geocode.py
 $py v0/step5_colocate.py
 $py v0/step6_report.py > /dev/null
