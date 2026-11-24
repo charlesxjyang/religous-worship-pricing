@@ -81,6 +81,8 @@ CLT_AREAS = "https://services.arcgis.com/9Nl857LBlQVyzq54/arcgis/rest/services/C
 CENSUS_REPORTER = "https://api.censusreporter.org/1.0"
 ZCTA_GROUPS = {"nyc": ["05000US36005", "05000US36047", "05000US36061", "05000US36081", "05000US36085"],
                "dc": ["04000US11"], "charlotte": ["05000US37119"], "sf": ["05000US06075"], "houston": ["05000US48201"]}
+PLACE_GEO = {"nyc": "16000US3651000", "dc": "16000US1150000", "charlotte": "16000US3712000",
+             "sf": "16000US0667000", "houston": "16000US4835000"}
 SF_NHOODS = "https://data.sf.gov/resource/j2bu-swwd.geojson?$limit=100"
 HOU_SUPER = "https://services.arcgis.com/NummVBqZSIJKUeVR/arcgis/rest/services/COH_Super_Neighborhoods_view/FeatureServer/3"
 CLT_OFFICE = ["OFFICE", "MEDICAL OFFICE", "BANK", "OFFICE HIGH RISE - > 6 STORIES", "LABORATORY / RESEARCH"]
@@ -517,11 +519,14 @@ def main():
         rob.append({"city": config.CITIES[r["city"]]["name"],
                     **{lab: f"{r[lab]['b']:+.1f} ({r[lab]['se']:.1f})" for lab, _, _ in checks}})
     w.append(md_table(rob, list(rob[0])))
+    pops = json.loads(download(f"{CENSUS_REPORTER}/data/show/latest?table_ids=B01003&geo_ids=" + ",".join(PLACE_GEO.values()),
+                               config.ROOT / "data" / "zcta" / "place_population.json").read_text())["data"]
     w.append("\n## Levels by city\n")
     w.append("Shares of congregations (listing placement). Church buildings are lots whose use code says church, "
              "synagogue or chapel; for DC and Charlotte, whose parcel records carry no year built, they are the "
              "assessor's commercial building records with a religious use (DC use code 081, Charlotte building "
-             "type CHURCH), counted per parcel.\n\n")
+             "type CHURCH), counted per parcel. Residents: ACS 2020-2024 city population; Houston's count covers "
+             "its Harris County part only.\n\n")
     lv = []
     for city in sorted(CITIES, key=lambda c: SAIZ[c][0]):
         c = d[d.city == city]
@@ -529,7 +534,9 @@ def main():
         n_m1, n_yr, med_yr, new = built[city]
         has_yr = n_yr >= 0.5 * n_m1
         lv.append({"city": config.CITIES[city]["name"], "supply elasticity": SAIZ[city][0],
-                   "congregations": f"{len(c):,}", "sharing worship space": f"{100 * c.shares_space.mean():.1f}%",
+                   "congregations": f"{len(c):,}",
+                   "per 10,000 residents": f"{1e4 * len(c) / pops[PLACE_GEO[city]]['B01003']['estimate']['B01003001']:.1f}",
+                   "sharing worship space": f"{100 * c.shares_space.mean():.1f}%",
                    "in a religious building": f"{100 * c.in_religious.mean():.1f}%",
                    "sharing, of those in religious buildings": f"{100 * rel.shares_space.mean():.1f}%",
                    "in store, office or loft units": f"{100 * c.commercial_units.mean():.1f}%",
