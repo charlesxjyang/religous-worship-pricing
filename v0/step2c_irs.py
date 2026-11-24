@@ -61,6 +61,7 @@ def main():
                left(RULING, 4) AS ruling_year, ASSET_AMT, REVENUE_AMT
         FROM read_csv('{path}', all_varchar = true, header = true)
         WHERE left(ZIP, 3) IN ({zips}) AND (FOUNDATION = '10' OR NTEE_CD LIKE 'X%')
+          {f"AND upper(trim(CITY)) = '{config.IRS_CITY}'" if config.IRS_CITY else ""}
     """).fetchall()
     print(f"{len(rows):,} religious organizations registered at {config.CITY_SHORT} ZIP codes")
 

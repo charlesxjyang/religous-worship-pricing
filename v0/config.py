@@ -2,6 +2,7 @@
 
     .venv/bin/python v0/step1_load.py              # New York City (default)
     CITY=dc .venv/bin/python v0/step1_load.py      # Washington, DC
+    CITY=charlotte .venv/bin/python v0/step1_load.py   # Charlotte, NC
 
 The plan (docs/plan.md) writes Version 0 for Richmond. Inputs per city:
 
@@ -42,8 +43,16 @@ CITIES = {
         bbox=dict(xmin=-77.1199, xmax=-76.9094, ymin=38.7916, ymax=38.9955),
         zip3=("200", "202", "203", "204", "205"),
         place_re=r"\b(washington|d\.?c\.?|district of columbia)\b",
-        geocoder="census", irs_file="eo_dc.csv",
-        report_dir=ROOT / "v0" / "dc", db_name="dc_v0.duckdb",
+        geocoder="dc", irs_file="eo_dc.csv",
+        report_dir=ROOT / "v0" / "dc", db_name="dc_v0.duckdb", geo_hint="Washington, DC",
+    ),
+    "charlotte": dict(
+        name="Charlotte, NC", short="Charlotte", state="NC", area_label="council district",
+        bbox=dict(xmin=-81.0118, xmax=-80.6348, ymin=35.0105, ymax=35.4003),
+        zip3=("282",), irs_city="CHARLOTTE",
+        place_re=r"\b(charlotte|n\.?c\.?|north carolina)\b",
+        geocoder="charlotte", irs_file="eo_nc.csv",
+        report_dir=ROOT / "v0" / "charlotte", db_name="charlotte_v0.duckdb", geo_hint="Charlotte, NC",
     ),
 }
 if CITY not in CITIES:
@@ -56,6 +65,8 @@ ZIP3 = C["zip3"]
 PLACE_RE = re.compile(C["place_re"], re.I)
 GEOCODER = C["geocoder"]
 IRS_FILE = C["irs_file"]
+IRS_CITY = C.get("irs_city")      # IRS rows also filtered by city name where ZIPs spill over
+GEO_HINT = C.get("geo_hint")      # appended to addresses lacking a city (NYC uses the borough)
 
 DATA = ROOT / "data" / CITY
 RAW = DATA / "raw"

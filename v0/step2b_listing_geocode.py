@@ -48,7 +48,7 @@ def main():
         if not re.match(r"^\s*\d", address):
             rec = (pid, None, None, None, None, None, None, None, None)
         else:
-            hint = boro if config.CITY == "nyc" else f"Washington, {config.STATE}"
+            hint = boro if config.CITY == "nyc" else config.GEO_HINT
             q = f"{address}, {hint}" + (f" {zip5}" if zip5 and zip5.isdigit() else "")
             hit = geo(q, cache, lock)
             if hit and (hit.get("bbl") or hit.get("lat")):

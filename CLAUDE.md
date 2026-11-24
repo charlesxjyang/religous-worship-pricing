@@ -47,24 +47,29 @@ Status:
   website, phone, `names.names_match` and IRS EIN, and grades each "shared"
   flag (`shared_evidence`).
 - Scope (Charles, 2026-11-23): NYC plus about two other cities to start.
-  Washington, DC is the second (Charles, 2026-11-23); the third is open.
+  Washington, DC is the second and Charlotte, NC the third (Charles, 2026-11-23/24).
 
 ## Cities
 
 Every script takes the city from the `CITY` environment variable (`nyc`,
-the default, or `dc`); `v0/config.py` holds the per-city settings and
-`v0/dc.py` the DC loaders. Outputs: NYC in `v0/`, DC in `v0/dc/`, each with a
-gitignored `private/` folder. Rebuild a city end to end with
-`v0/run_city.sh nyc|dc` (extraction excluded), then `--after-extract`.
+the default, `dc` or `charlotte`); `v0/config.py` holds the per-city settings,
+`v0/dc.py` and `v0/charlotte.py` the city loaders, and `v0/arcgis.py` and
+`v0/addrgeo.py` the shared ArcGIS paging and address-to-parcel geocoding.
+Outputs: NYC in `v0/`, others in `v0/<city>/`, each with a gitignored
+`private/` folder. Rebuild a city end to end with
+`v0/run_city.sh nyc|dc|charlotte` (extraction excluded), then `--after-extract`.
 
-| Input | NYC | Washington, DC |
-| --- | --- | --- |
-| Subareas | 5 boroughs | 8 wards (DCGIS Ward - 2022) |
-| Parcels | PLUTO + DOF tax lots; key BBL | OTR owner polygons (ITSPE); key SSL, surrogate `bbl` |
-| Building type | DOF building class | DC use code mapped to DOF classes (`dc.USE_TO_CLASS`; 081 Religious = M1) |
-| Religious ownership | class M, owner name | class M, owner name, RPTA exemption E1 (religious) |
-| Geocoder | GeoSearch (BBL and BIN) | exact match to a parcel's premise address, else Census geocoder + parcel under the point; no building ID |
-| IRS file | eo_ny.csv | eo_dc.csv |
+| Input | NYC | Washington, DC | Charlotte, NC |
+| --- | --- | --- | --- |
+| Subareas | 5 boroughs | 8 wards (DCGIS Ward - 2022) | 7 city council districts |
+| Parcels | PLUTO + DOF tax lots; key BBL | OTR owner polygons (ITSPE); key SSL, surrogate `bbl` | Mecklenburg Parcel_Landuse, Charlotte tax district; key PID, surrogate `bbl` |
+| Building type | DOF building class | DC use code mapped to DOF classes (`dc.USE_TO_CLASS`; 081 Religious = M1) | land-use description mapped to DOF classes (`charlotte.class_for`; CHURCH = M1) |
+| Religious ownership | class M, owner name | class M, owner name, RPTA exemption E1 | class M, owner name, exemption RELIGIOUS |
+| Geocoder | GeoSearch (BBL and BIN) | exact match to a parcel's premise address, else Census geocoder + parcel under the point; no building ID | exact match to county address points (with parent parcel), else Census; no building ID |
+| IRS file | eo_ny.csv | eo_dc.csv | eo_nc.csv, ZIP 282xx and city CHARLOTTE |
+
+In DC and Charlotte a lot with a religious tax exemption counts as a religious
+building whatever its use code (the exemption requires religious use).
 
 A new cloud session gets environment variables (the API key) but not
 `data/`, which is gitignored: rebuild with `v0/run_city.sh` first.

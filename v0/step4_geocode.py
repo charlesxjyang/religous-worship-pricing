@@ -103,7 +103,7 @@ def main():
             if outside_city(address):
                 rec["outside_nyc"] = True      # column name kept; means outside this city
             else:
-                hint = boro if config.CITY == "nyc" else f"Washington, {config.STATE}"
+                hint = boro if config.CITY == "nyc" else config.GEO_HINT
                 q = address if config.PLACE_RE.search(address) or CITY_ZIP_RE.search(address) \
                     else f"{address}, {hint}"
                 rec["query"] = q

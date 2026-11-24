@@ -180,6 +180,9 @@ def build_report(con, release, overture_file):
     if config.CITY == "dc":
         area, area_src = "Ward", "DCGIS Ward - 2022"
         lot_src, rec_src = "DC OTR owner polygons", "ITSPE, with RPTA tax exemptions"
+    elif config.CITY == "charlotte":
+        area, area_src = "Council district", "Mecklenburg GIS, Charlotte City Council Districts"
+        lot_src, rec_src = "Mecklenburg Parcel_Landuse polygons", "land use, owner, exemption"
     else:
         area, area_src = "Borough", f"NYC Open Data {config.BOROUGHS_DATASET}, water included"
         lot_src = f"DOF tax lots, NYC Open Data {config.TAXLOT_DATASET}"
@@ -310,11 +313,12 @@ def main():
     config.RAW.mkdir(parents=True, exist_ok=True)
     release = config.OVERTURE_RELEASE or latest_overture_release()
     con = connect(config.DB_PATH)
-    if config.CITY == "dc":
-        import dc
-        print("wards ...");     dc.load_boundary(con)
+    if config.CITY in ("dc", "charlotte"):
+        import importlib
+        city = importlib.import_module(config.CITY)
+        print(f"{config.AREA_LABEL}s ...");  city.load_boundary(con)
         print("overture ...");  overture_file = load_overture(con, release)
-        print("parcels ...");   dc.load_parcels(con)
+        print("parcels ...");   city.load_parcels(con)
     else:
         print("boroughs ...");  load_boroughs(con)
         print("overture ...");  overture_file = load_overture(con, release)
