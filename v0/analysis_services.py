@@ -56,6 +56,26 @@ GROUP = """
 """
 
 
+# Multi-use count of the building a congregation gathers in (Charles,
+# 2026-11-24): 1 per congregation on the lot, +1 for a school that is not the
+# congregation's own (public, charter, independent, college), +1 when the
+# building's main use is not religious (store, office, home, apartments over
+# stores, industrial, hall). A church alone in its own building = 1; a church
+# with a guest congregation, or with a charter school in it, or a storefront
+# church = 2; two churches in a store building = 3. Homes that look like a
+# mailing address (location unknown) get no count.
+NONRELIGIOUS_USES = ("store or office building", "apartments or house with stores", "residential",
+                     "industrial, garage or loft", "other institution or hall")
+OTHER_SCHOOL = ("public school", "independent school", "unrelated school building", "college")
+USES = f"""
+    CASE WHEN s.location_unknown THEN NULL ELSE
+         (s.others_headline + 1)
+         + CASE WHEN s.school_check IN ({', '.join(f"'{x}'" for x in OTHER_SCHOOL)}) THEN 1 ELSE 0 END
+         + CASE WHEN s.building_use IN ({', '.join(f"'{x}'" for x in NONRELIGIOUS_USES)}) THEN 1 ELSE 0 END
+    END
+"""
+
+
 def build(con):
     con.execute("""
         CREATE OR REPLACE TABLE cong_services AS
@@ -103,7 +123,8 @@ def build(con):
                coalesce(u.main_languages, 0) AS main_languages, coalesce(u.building_hours, 0) AS building_hours,
                u.share_posted_end, u.cong_id IS NOT NULL AND u.main_services > 0 AS has_schedule,
                s.cong_id IN (SELECT c.cong_id FROM place_cong c JOIN place_gathering g USING (id) WHERE g.site_ok)
-                 AS has_matched_site
+                 AS has_matched_site,
+               {USES} AS uses
         FROM cong_sharing s LEFT JOIN cong_util u USING (cong_id)
     """)
 
@@ -125,7 +146,46 @@ def report(con) -> str:
         w("**No service data in this database.** Website extraction (step 4b) has not run here.\n")
         return "\n".join(out) + "\n"
 
-    w("## Who has a schedule\n")
+    w("## Multi-use and services, by tradition\n")
+    w("Multi-use counts the uses sharing the building a congregation gathers in: 1 per "
+      "congregation on the lot, +1 for a school that is not its own (public, charter, independent, "
+      "college), +1 when the building's main use is not religious (store, office, home, apartments "
+      "over stores, industrial, hall). A church alone in its own building is 1.0; with a guest "
+      "congregation or a charter school, or as a storefront church, 2.0. The service columns cover "
+      "congregations that posted a schedule.\n")
+    w(md_table(q(f"""
+        SELECT tradition, count(*) AS congregations,
+               round(avg(uses), 2) AS mean_uses,
+               round(100 * avg((uses = 1)::INT)) AS pct_one_use,
+               round(100 * avg((uses = 2)::INT)) AS pct_two_uses,
+               round(100 * avg((uses >= 3)::INT)) AS pct_three_plus,
+               count(*) FILTER (WHERE has_schedule) AS with_schedule,
+               round(avg(main_services) FILTER (WHERE has_schedule), 1) AS mean_main_services,
+               round(100 * avg((main_services >= 2)::INT) FILTER (WHERE has_schedule)) AS pct_2plus_services,
+               round(avg(building_hours) FILTER (WHERE has_schedule), 1) AS mean_hours_week
+        FROM cong_util_full WHERE headline AND uses IS NOT NULL
+        GROUP BY 1 HAVING count(*) >= {MIN_N} ORDER BY 2 DESC
+    """)))
+    w(f"\nBy {config.AREA_LABEL}, all traditions (service columns as above):\n")
+    w(md_table(q(f"""
+        SELECT borough AS "{config.AREA_LABEL}", count(*) AS congregations,
+               round(avg(uses), 2) AS mean_uses,
+               round(100 * avg((uses >= 2)::INT)) AS pct_multi_use,
+               count(*) FILTER (WHERE has_schedule) AS with_schedule,
+               round(avg(main_services) FILTER (WHERE has_schedule), 1) AS mean_main_services,
+               round(100 * avg((main_services >= 2)::INT) FILTER (WHERE has_schedule)) AS pct_2plus_services
+        FROM cong_util_full WHERE headline AND uses IS NOT NULL
+        GROUP BY 1 ORDER BY 1
+    """)))
+    w("\nMulti-use within each kind of building:\n")
+    w(md_table(q("""
+        SELECT building_group, count(*) AS congregations, round(avg(uses), 2) AS mean_uses,
+               max(uses) AS max_uses
+        FROM cong_util_full WHERE headline AND uses IS NOT NULL AND building_group IS NOT NULL
+        GROUP BY 1 ORDER BY 3
+    """)))
+
+    w("\n## Who has a schedule\n")
     w(md_table(q("""
         SELECT building_group, count(*) AS congregations,
                count(*) FILTER (WHERE has_matched_site) AS with_matched_site,
@@ -182,9 +242,12 @@ def report(con) -> str:
           FROM cong_util_full WHERE headline AND building_group IS NOT NULL GROUP BY bbl
         )
         SELECT building_group, count(*) AS lots, round(avg(congregations), 2) AS congregations_per_lot,
+               round(avg(uses), 2) AS mean_uses,
                round(avg(main_services), 1) AS mean_main_services, median(main_services) AS median_main,
                round(avg(hours), 1) AS mean_hours_week
-        FROM lot WHERE all_have_schedule GROUP BY 1 ORDER BY 1
+        FROM (SELECT l.*, u.uses FROM lot l
+              JOIN (SELECT bbl, max(uses) AS uses FROM cong_util_full WHERE headline GROUP BY 1) u USING (bbl))
+        WHERE all_have_schedule GROUP BY 1 ORDER BY 1
     """)))
 
     w(f"\n## Single-use religious buildings by {config.AREA_LABEL}\n")
