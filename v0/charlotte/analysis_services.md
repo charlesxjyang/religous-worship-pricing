@@ -2,6 +2,37 @@
 
 Run 2026-11-24. Of 1,068 congregations, 374 have a website that matched their listing and 295 posted weekly main services that extraction found, with a quote on the page for each. Everything below is about those congregations; they are likely larger and better established than those without a website or schedule.
 
+## Multi-use and services, by tradition
+
+Multi-use counts the uses sharing the building a congregation gathers in: 1 per congregation on the lot, +1 for a school that is not its own (public, charter, independent, college), +1 when the building's main use is not religious (store, office, home, apartments over stores, industrial, hall). A church alone in its own building is 1.0; with a guest congregation or a charter school, or as a storefront church, 2.0. The service columns cover congregations that posted a schedule.
+
+| tradition | congregations | mean_uses | pct_one_use | pct_two_uses | pct_three_plus | with_schedule | mean_main_services | pct_2plus_services | mean_hours_week |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Protestant and other Christian | 980 | 1.87 | 43.0 | 39.0 | 18.0 | 280 | 1.3 | 21.0 | 2.6 |
+| Unknown | 27 | 2.33 | 19.0 | 48.0 | 33.0 | 0 |  |  |  |
+| Catholic | 17 | 1.65 | 71.0 | 12.0 | 18.0 | 6 | 3.3 | 67.0 | 5.7 |
+| Muslim | 15 | 1.8 | 33.0 | 53.0 | 13.0 | 1 | 1.0 | 0.0 | 0.8 |
+
+By council district, all traditions (service columns as above):
+
+| council district | congregations | mean_uses | pct_multi_use | with_schedule | mean_main_services | pct_2plus_services |
+| --- | --- | --- | --- | --- | --- | --- |
+| District 1 | 257 | 1.95 | 60.0 | 54 | 1.2 | 11.0 |
+| District 2 | 238 | 1.9 | 53.0 | 47 | 1.2 | 17.0 |
+| District 3 | 176 | 1.84 | 63.0 | 51 | 1.4 | 22.0 |
+| District 4 | 95 | 1.93 | 66.0 | 37 | 1.4 | 35.0 |
+| District 5 | 167 | 1.92 | 53.0 | 46 | 1.3 | 15.0 |
+| District 6 | 76 | 1.62 | 45.0 | 33 | 1.5 | 48.0 |
+| District 7 | 52 | 1.48 | 40.0 | 23 | 1.2 | 22.0 |
+
+Multi-use within each kind of building:
+
+| building_group | congregations | mean_uses | max_uses |
+| --- | --- | --- | --- |
+| single-use religious building | 451 | 1.0 | 1 |
+| shared religious building | 193 | 2.44 | 6 |
+| other-use building | 417 | 2.54 | 7 |
+
 ## Who has a schedule
 
 | building_group | congregations | with_matched_site | with_schedule | pct_with_schedule |
@@ -36,11 +67,11 @@ Share holding two or more main services:
 
 Total weekly main services and worship hours on one tax lot, adding host and guests. Only lots where every congregation on them posted a schedule, so totals are not undercounted.
 
-| building_group | lots | congregations_per_lot | mean_main_services | median_main | mean_hours_week |
-| --- | --- | --- | --- | --- | --- |
-| other-use building | 50 | 1.02 | 1.3 | 1.0 | 2.6 |
-| shared religious building | 7 | 2.0 | 2.0 | 2.0 | 4.7 |
-| single-use religious building | 163 | 1.0 | 1.4 | 1.0 | 2.8 |
+| building_group | lots | congregations_per_lot | mean_uses | mean_main_services | median_main | mean_hours_week |
+| --- | --- | --- | --- | --- | --- | --- |
+| other-use building | 50 | 1.02 | 2.0 | 1.3 | 1.0 | 2.6 |
+| shared religious building | 7 | 2.0 | 2.0 | 2.0 | 2.0 | 4.7 |
+| single-use religious building | 163 | 1.0 | 1.0 | 1.4 | 1.0 | 2.8 |
 
 ## Single-use religious buildings by council district
 

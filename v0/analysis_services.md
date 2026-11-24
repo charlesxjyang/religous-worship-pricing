@@ -2,6 +2,39 @@
 
 Run 2026-11-24. Of 6,897 congregations, 1,702 have a website that matched their listing and 1,280 posted weekly main services that extraction found, with a quote on the page for each. Everything below is about those congregations; they are likely larger and better established than those without a website or schedule.
 
+## Multi-use and services, by tradition
+
+Multi-use counts the uses sharing the building a congregation gathers in: 1 per congregation on the lot, +1 for a school that is not its own (public, charter, independent, college), +1 when the building's main use is not religious (store, office, home, apartments over stores, industrial, hall). A church alone in its own building is 1.0; with a guest congregation or a charter school, or as a storefront church, 2.0. The service columns cover congregations that posted a schedule.
+
+| tradition | congregations | mean_uses | pct_one_use | pct_two_uses | pct_three_plus | with_schedule | mean_main_services | pct_2plus_services | mean_hours_week |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Protestant and other Christian | 4967 | 1.71 | 44.0 | 45.0 | 11.0 | 950 | 1.3 | 22.0 | 3.1 |
+| Jewish | 487 | 1.48 | 60.0 | 35.0 | 5.0 | 93 | 1.7 | 55.0 | 5.2 |
+| Catholic | 438 | 1.34 | 69.0 | 28.0 | 3.0 | 135 | 3.4 | 87.0 | 8.2 |
+| Unknown | 286 | 1.91 | 28.0 | 59.0 | 13.0 | 2 | 1.0 | 0.0 | 1.8 |
+| Muslim | 233 | 1.62 | 42.0 | 53.0 | 5.0 | 19 | 1.3 | 21.0 | 5.1 |
+| Hindu | 96 | 1.66 | 42.0 | 53.0 | 5.0 | 5 | 1.0 | 0.0 | 7.8 |
+| Buddhist | 77 | 1.64 | 48.0 | 42.0 | 10.0 | 4 | 1.0 | 0.0 | 6.5 |
+| Orthodox Christian | 52 | 1.37 | 69.0 | 25.0 | 6.0 | 30 | 1.2 | 17.0 | 4.7 |
+
+By borough, all traditions (service columns as above):
+
+| borough | congregations | mean_uses | pct_multi_use | with_schedule | mean_main_services | pct_2plus_services |
+| --- | --- | --- | --- | --- | --- | --- |
+| Bronx | 1181 | 1.76 | 58.0 | 141 | 1.3 | 17.0 |
+| Brooklyn | 2200 | 1.59 | 50.0 | 366 | 1.5 | 29.0 |
+| Manhattan | 1185 | 1.71 | 54.0 | 305 | 1.5 | 32.0 |
+| Queens | 1800 | 1.7 | 56.0 | 354 | 1.8 | 38.0 |
+| Staten Island | 284 | 1.54 | 46.0 | 73 | 1.5 | 33.0 |
+
+Multi-use within each kind of building:
+
+| building_group | congregations | mean_uses | max_uses |
+| --- | --- | --- | --- |
+| single-use religious building | 2896 | 1.0 | 1 |
+| other-use building | 2793 | 2.15 | 7 |
+| shared religious building | 961 | 2.29 | 5 |
+
 ## Who has a schedule
 
 | building_group | congregations | with_matched_site | with_schedule | pct_with_schedule |
@@ -47,11 +80,11 @@ Share holding two or more main services:
 
 Total weekly main services and worship hours on one tax lot, adding host and guests. Only lots where every congregation on them posted a schedule, so totals are not undercounted.
 
-| building_group | lots | congregations_per_lot | mean_main_services | median_main | mean_hours_week |
-| --- | --- | --- | --- | --- | --- |
-| other-use building | 286 | 1.02 | 1.5 | 1.0 | 3.8 |
-| shared religious building | 30 | 2.03 | 3.2 | 3.0 | 7.3 |
-| single-use religious building | 679 | 1.0 | 1.7 | 1.0 | 4.3 |
+| building_group | lots | congregations_per_lot | mean_uses | mean_main_services | median_main | mean_hours_week |
+| --- | --- | --- | --- | --- | --- | --- |
+| other-use building | 286 | 1.02 | 1.92 | 1.5 | 1.0 | 3.8 |
+| shared religious building | 30 | 2.03 | 2.03 | 3.2 | 3.0 | 7.3 |
+| single-use religious building | 679 | 1.0 | 1.0 | 1.7 | 1.0 | 4.3 |
 
 ## Single-use religious buildings by borough
 
