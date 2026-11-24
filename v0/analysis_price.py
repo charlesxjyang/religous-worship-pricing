@@ -1,17 +1,23 @@
-"""Do congregations share space more where commercial space is dear? (NYC and DC)
+"""Do congregations share space more where commercial space is dear? (NYC, DC, Charlotte)
 
 Price: assessed market value of land per square foot of lot, for retail and
 office lots, the kind of space a congregation rents (NYC building classes K
-and O; DC use codes that step 1 maps to K and O).
+and O; DC use codes and Charlotte land-use descriptions that step 1 maps to K
+and O; condominium lots left out, since their land value is a share).
 
 - NYC: PLUTO's assessed land value / 0.45 (retail and office lots are tax
   class 4, assessed at 45% of DOF market value), over lot area.
 - DC: OTR's land value (NEWLAND, full market value) over land area, pulled
   here for commercial use codes only (step 1 kept total value only).
+- Charlotte: Mecklenburg County's CAMA land value (amt_landvalue, 2023
+  revaluation, market value) over the parcel polygon's area, pulled here for
+  retail and office property uses in the city.
 
 Each congregation gets the median over commercial lots within 1 km of its
 listing point (2 km where fewer than 10 lie within 1 km). Areas for maps and
-clustered errors: NYC community districts, DC neighborhood clusters.
+clustered errors: NYC community districts, DC neighborhood clusters,
+Charlotte's 15 community planning areas (few clusters: treat Charlotte's own
+standard errors as rough).
 
 The test is a linear probability model at the congregation level: outcome
 (sharing worship space, sharing the property, multi-use, meeting in a store or
@@ -23,7 +29,7 @@ the local land price.
 Placement is the listing address (cong_sharing_raw), so in a session without
 website extraction this runs on listings only; the report says which.
 
-Run after step 5 and analysis_sharing.py / analysis_services.py for both cities:
+Run after step 5 and analysis_sharing.py / analysis_services.py for every city:
     .venv/bin/python v0/analysis_price.py
 Writes tables commercial_lots and cong_price in each city's database,
 v0/analysis_price.md (aggregates only) and v0/private/price_viz.json
@@ -42,7 +48,8 @@ import statsmodels.formula.api as smf
 import config
 from common import download
 
-CITIES = ("nyc", "dc")
+CITIES = ("nyc", "dc", "charlotte")
+LABEL = {"nyc": "NYC", "dc": "DC", "charlotte": "Charlotte"}
 RADIUS_M = 1000
 FALLBACK_M = 2000
 MIN_LOTS = 10
@@ -52,6 +59,13 @@ DC_CLUSTERS = f"{config.DCGIS}/Administrative_Other_Boundaries_WebMercator/MapSe
 DC_OWNER = config.DC_OWNER_POLYGONS
 DC_RETAIL_OFFICE = ["004", "041", "042", "043", "044", "045", "046", "047", "048", "049", "067", "068",
                     "006", "069", "005", "051", "052", "053", "056", "057", "058", "059", "061"]
+CLT_CAMA = "https://meckgis.mecklenburgcountync.gov/server/rest/services/TaxParcel_Camaownershipvalues/FeatureServer/0"
+CLT_AREAS = "https://services.arcgis.com/9Nl857LBlQVyzq54/arcgis/rest/services/Community_Planning_Areas/FeatureServer/0"
+CLT_OFFICE = ["OFFICE", "MEDICAL OFFICE", "BANK", "OFFICE HIGH RISE - > 6 STORIES", "LABORATORY / RESEARCH"]
+CLT_RETAIL = ["COMMERCIAL", "RESTAURANT", "FAST FOOD", "AUTO SALES AND SERVICE", "CONVENIENCE STORE",
+              "SHOPPING CENTER - STRIP", "CAR WASH", "SERVICE GARAGE", "SUPERMARKET", "SHOPPING CENTER - MALL",
+              "DEPARTMENT STORE", "CONVIENCE/FAST FOOD STORE", "COMMERCIAL SERVICE(LAUNDRY,TV,RADIO,ETC)",
+              "LUMBER YARD", "SERVICE STATION", "FURNITURE STORE", "LOUNGE, NIGHT CLUB, BAR"]
 OUTCOMES = [("shares_space", "Sharing worship space"),
             ("sharing_property", "Sharing, same property"),
             ("multi_use", "Multi-use (2+ uses)"),
@@ -82,6 +96,34 @@ def dc_areas(raw):
                FROM ST_Read('{path}')"""
 
 
+def clt_areas(raw):
+    q = urllib.parse.urlencode({"where": "1=1", "outFields": "Name", "outSR": 4326, "f": "geojson"})
+    path = download(f"{CLT_AREAS}/query?{q}", raw / "charlotte_community_planning_areas.geojson")
+    return f"""SELECT Name AS area_id, Name AS area_name, false AS non_residential, geom FROM ST_Read('{path}')"""
+
+
+def arcgis_rows(layer, where, fields, dest):
+    """All rows of an ArcGIS layer matching where, 2,000 per request, cached under dest."""
+    parts, offset = [], 0
+    while True:
+        q = urllib.parse.urlencode({"where": where, "outFields": fields, "orderByFields": "OBJECTID",
+                                    "resultOffset": offset, "resultRecordCount": 2000,
+                                    "returnGeometry": "false", "f": "json"})
+        p = download(f"{layer}/query?{q}", dest / f"part-{offset // 2000:04d}.json")
+        feats = json.loads(p.read_text()).get("features", [])
+        parts += [f["attributes"] for f in feats]
+        if len(feats) < 2000:
+            return pd.DataFrame(parts)
+        offset += 2000
+
+
+def clt_land_values(raw):
+    """Land value for Charlotte retail and office parcels (owner fields are not requested)."""
+    uses = ",".join("'" + u.replace("'", "''") + "'" for u in CLT_OFFICE + CLT_RETAIL)
+    return arcgis_rows(CLT_CAMA, f"municipality_desc = 'CHARLOTTE' AND txt_propertyuse_desc IN ({uses})",
+                       "OBJECTID,pid,txt_propertyuse_desc,amt_landvalue", raw / "clt_commercial_values")
+
+
 def dc_land_values(raw):
     """Land value and area for DC retail and office lots (one request per 2,000 lots)."""
     where = "USECODE IN (" + ",".join(f"'{u}'" for u in DC_RETAIL_OFFICE) + ")"
@@ -102,7 +144,7 @@ def build_city(city):
     cfg = city_cfg(city)
     con = duckdb.connect(str(cfg["db"]))
     con.execute("LOAD spatial")
-    areas_sql = nyc_areas(cfg["raw"]) if city == "nyc" else dc_areas(cfg["raw"])
+    areas_sql = {"nyc": nyc_areas, "dc": dc_areas, "charlotte": clt_areas}[city](cfg["raw"])
     con.execute(f"CREATE OR REPLACE TEMP TABLE areas AS {areas_sql}")
 
     # Commercial lots: a point and a land price per square foot.
@@ -113,6 +155,19 @@ def build_city(city):
             FROM pluto
             WHERE left(bldgclass, 1) IN ('K', 'O') AND lotarea >= 200 AND assessland > 0
               AND latitude IS NOT NULL""")
+    elif city == "charlotte":
+        vals = clt_land_values(cfg["raw"])
+        con.register("vals", vals)
+        office = ",".join(f"'{u}'" for u in CLT_OFFICE)
+        con.execute(f"""CREATE OR REPLACE TABLE commercial_lots AS
+            WITH lots AS (SELECT p.pid, any_value(p.bbl) AS bbl FROM pluto p GROUP BY 1),
+                 polys AS (SELECT bbl, ST_Union_Agg(geom) AS g FROM taxlots GROUP BY 1)
+            SELECT l.bbl, ST_Y(ST_Centroid(t.g)) AS lat, ST_X(ST_Centroid(t.g)) AS lon,
+                   CASE WHEN v.txt_propertyuse_desc IN ({office}) THEN 'O' ELSE 'K' END AS kind,
+                   v.amt_landvalue / ST_Area(ST_Transform(t.g, 'EPSG:4326', 'EPSG:2264', always_xy := true)) AS land_psf
+            FROM vals v JOIN lots l ON l.pid = trim(v.pid) JOIN polys t ON t.bbl = l.bbl
+            WHERE v.amt_landvalue > 0
+              AND ST_Area(ST_Transform(t.g, 'EPSG:4326', 'EPSG:2264', always_xy := true)) >= 200""")
     else:
         vals = dc_land_values(cfg["raw"])
         con.register("vals", vals)
@@ -264,14 +319,14 @@ def main():
               ("+ tradition, nearby congregations", "lp + C(city) + C(tradition) + ld")]
     reg = []
     for y, ylab in OUTCOMES:
-        for sample, sub in (("Both cities", has), ("NYC", has[has.city == "nyc"]), ("DC", has[has.city == "dc"])):
+        for sample, sub in (("All cities", has), *((LABEL[c], has[has.city == c]) for c in CITIES)):
             for mlab, rhs in models:
-                rhs_s = rhs if sample == "Both cities" else rhs.replace(" + C(city)", "")
+                rhs_s = rhs if sample == "All cities" else rhs.replace(" + C(city)", "")
                 b, se, p, n = fit(sub, y, rhs_s)
                 reg.append({"outcome": ylab, "sample": sample, "model": mlab, "b": round(b, 2), "se": round(se, 2),
                             "p": float(p), "n": n})
         if y == "shares_space":
-            for sample, sub in (("Both cities, religious buildings only", has[has.in_religious]),):
+            for sample, sub in (("All cities, religious buildings only", has[has.in_religious]),):
                 for mlab, rhs in models:
                     b, se, p, n = fit(sub, y, rhs)
                     reg.append({"outcome": ylab, "sample": sample, "model": mlab, "b": round(b, 2), "se": round(se, 2),
@@ -293,10 +348,10 @@ def main():
     basis = ("website gathering addresses where extraction found them, else the listing"
              if all(extracted.values()) else "the Overture listing address (website extraction was not run in this database)")
     w = []
-    w.append("# Sharing and the local price of commercial space, NYC and DC\n")
+    w.append("# Sharing and the local price of commercial space, NYC, DC and Charlotte\n")
     w.append(f"Congregations placed at {basis}. Price: assessed market value of land per square foot for retail "
              f"and office lots, median within {RADIUS_M:,} m of each congregation ({FALLBACK_M:,} m where fewer than "
-             f"{MIN_LOTS} lots lie within {RADIUS_M:,} m). NYC: PLUTO land assessment / 0.45; DC: OTR land value. "
+             f"{MIN_LOTS} lots lie within {RADIUS_M:,} m). NYC: PLUTO land assessment / 0.45; DC: OTR land value; Charlotte: county CAMA land value over parcel area. "
              "Assessed values are the assessor's estimate of market value, not observed rents.\n")
     w.append("## The price measure\n")
     rows = []
@@ -316,7 +371,7 @@ def main():
     w.append(md_table(qrows, list(qrows[0])))
     w.append("\n## Regression: percentage points per doubling of local land price\n")
     w.append("Linear probability models at the congregation level, standard errors clustered by community district "
-             "(NYC) or neighborhood cluster (DC). Nearby congregations = log(1 + congregations within 1 km).\n\n")
+             "(NYC), neighborhood cluster (DC) or community planning area (Charlotte). Nearby congregations = log(1 + congregations within 1 km).\n\n")
     rrows = [{"outcome": r["outcome"], "sample": r["sample"], "model": r["model"],
               "pp per doubling (SE)": f"{r['b']:+.2f} ({r['se']:.2f})",
               "p": "<0.001" if r["p"] < 0.001 else f"{r['p']:.3f}", "n": f"{r['n']:,}"} for r in reg]
@@ -327,7 +382,7 @@ def main():
              "- Sharing in NYC is likely understated where pairs are split across neighbouring lots (the near-miss check "
              "in the map page), and that happens more in dense, expensive areas.\n"
              "- Prices and congregation density rise together; the third model holds nearby congregations fixed.\n"
-             "- Charlotte is not included: its parcel pull has no value fields yet.\n")
+             "- Charlotte has only 15 planning areas to cluster on, so its own standard errors are rough.\n")
     out = config.ROOT / "v0" / "analysis_price.md"
     out.write_text("\n".join(w).replace("\n\n\n", "\n\n"))
     priv = config.ROOT / "v0" / "private"

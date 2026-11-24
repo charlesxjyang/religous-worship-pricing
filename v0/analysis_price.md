@@ -1,6 +1,6 @@
-# Sharing and the local price of commercial space, NYC and DC
+# Sharing and the local price of commercial space, NYC, DC and Charlotte
 
-Congregations placed at the Overture listing address (website extraction was not run in this database). Price: assessed market value of land per square foot for retail and office lots, median within 1,000 m of each congregation (2,000 m where fewer than 10 lots lie within 1,000 m). NYC: PLUTO land assessment / 0.45; DC: OTR land value. Assessed values are the assessor's estimate of market value, not observed rents.
+Congregations placed at the Overture listing address (website extraction was not run in this database). Price: assessed market value of land per square foot for retail and office lots, median within 1,000 m of each congregation (2,000 m where fewer than 10 lots lie within 1,000 m). NYC: PLUTO land assessment / 0.45; DC: OTR land value; Charlotte: county CAMA land value over parcel area. Assessed values are the assessor's estimate of market value, not observed rents.
 
 ## The price measure
 
@@ -8,6 +8,7 @@ Congregations placed at the Overture listing address (website extraction was not
 | --- | --- | --- | --- | --- |
 | New York City | 25,832 | $50 ($35–$100) | 7,100 of 7,104 | 43 |
 | Washington, DC | 4,892 | $289 ($129–$479) | 944 of 944 | 27 |
+| Charlotte, NC | 6,987 | $22 ($13–$45) | 1,059 of 1,112 | 229 |
 
 ## Pooled by local price quintile, within each city
 
@@ -25,58 +26,75 @@ Quintiles of congregations by the land price around them. 95% Wilson intervals t
 |  | 3 | $90–$180 | 189 | 21.2% (15.9–27.5) | 27.0% (21.2–33.7) | 26.5% (20.7–33.3) | 6.3% (3.7–10.8) |
 |  | 4 | $180–$320 | 189 | 21.7% (16.4–28.1) | 25.9% (20.2–32.6) | 28.5% (22.5–35.4) | 9.0% (5.7–13.9) |
 |  | 5 | $320–$1,644 | 188 | 21.3% (16.0–27.7) | 24.5% (18.9–31.1) | 33.5% (27.1–40.6) | 12.8% (8.7–18.3) |
+| Charlotte, NC | 1 | $4–$11 | 213 | 20.7% (15.8–26.6) | 28.2% (22.6–34.6) | 26.1% (20.6–32.4) | 16.4% (12.1–22.0) |
+|  | 2 | $11–$16 | 211 | 18.5% (13.8–24.3) | 21.8% (16.8–27.8) | 25.1% (19.7–31.4) | 25.1% (19.7–31.4) |
+|  | 3 | $16–$19 | 211 | 17.5% (13.0–23.2) | 22.3% (17.2–28.4) | 22.3% (17.2–28.4) | 27.5% (21.9–33.9) |
+|  | 4 | $20–$30 | 213 | 16.4% (12.1–22.0) | 23.5% (18.3–29.6) | 23.6% (18.4–29.7) | 22.5% (17.4–28.6) |
+|  | 5 | $30–$198 | 211 | 19.4% (14.7–25.3) | 19.9% (15.1–25.8) | 27.3% (21.7–33.7) | 22.7% (17.6–28.9) |
 
 ## Regression: percentage points per doubling of local land price
 
-Linear probability models at the congregation level, standard errors clustered by community district (NYC) or neighborhood cluster (DC). Nearby congregations = log(1 + congregations within 1 km).
+Linear probability models at the congregation level, standard errors clustered by community district (NYC), neighborhood cluster (DC) or community planning area (Charlotte). Nearby congregations = log(1 + congregations within 1 km).
 
 | outcome | sample | model | pp per doubling (SE) | p | n |
 | --- | --- | --- | --- | --- | --- |
-| Sharing worship space | Both cities | City only | +2.88 (0.90) | 0.001 | 8,043 |
-| Sharing worship space | Both cities | + tradition | +3.11 (0.92) | <0.001 | 8,043 |
-| Sharing worship space | Both cities | + tradition, nearby congregations | +3.32 (0.94) | <0.001 | 8,043 |
+| Sharing worship space | All cities | City only | +2.56 (0.83) | 0.002 | 9,102 |
+| Sharing worship space | All cities | + tradition | +2.77 (0.85) | 0.001 | 9,102 |
+| Sharing worship space | All cities | + tradition, nearby congregations | +2.88 (0.87) | <0.001 | 9,102 |
 | Sharing worship space | NYC | City only | +3.10 (1.07) | 0.004 | 7,099 |
 | Sharing worship space | NYC | + tradition | +3.36 (1.10) | 0.002 | 7,099 |
 | Sharing worship space | NYC | + tradition, nearby congregations | +3.62 (1.11) | 0.001 | 7,099 |
 | Sharing worship space | DC | City only | +1.76 (0.94) | 0.061 | 944 |
 | Sharing worship space | DC | + tradition | +1.82 (0.93) | 0.052 | 944 |
 | Sharing worship space | DC | + tradition, nearby congregations | +1.69 (0.98) | 0.087 | 944 |
-| Sharing worship space | Both cities, religious buildings only | City only | +3.63 (1.11) | 0.001 | 4,615 |
-| Sharing worship space | Both cities, religious buildings only | + tradition | +4.18 (1.10) | <0.001 | 4,615 |
-| Sharing worship space | Both cities, religious buildings only | + tradition, nearby congregations | +4.46 (1.12) | <0.001 | 4,615 |
+| Sharing worship space | Charlotte | City only | -0.05 (1.66) | 0.977 | 1,059 |
+| Sharing worship space | Charlotte | + tradition | -0.09 (1.62) | 0.958 | 1,059 |
+| Sharing worship space | Charlotte | + tradition, nearby congregations | -0.47 (1.73) | 0.787 | 1,059 |
+| Sharing worship space | All cities, religious buildings only | City only | +3.27 (1.01) | 0.001 | 5,272 |
+| Sharing worship space | All cities, religious buildings only | + tradition | +3.79 (1.00) | <0.001 | 5,272 |
+| Sharing worship space | All cities, religious buildings only | + tradition, nearby congregations | +3.86 (1.03) | <0.001 | 5,272 |
 | Sharing worship space | NYC, religious buildings only | + tradition, nearby congregations | +4.87 (1.34) | <0.001 | 3,967 |
 | Sharing worship space | NYC, religious buildings only | + building floor area, built before 1930 | +3.72 (1.32) | 0.005 | 3,967 |
-| Sharing, same property | Both cities | City only | +3.05 (0.92) | <0.001 | 8,043 |
-| Sharing, same property | Both cities | + tradition | +3.28 (0.94) | <0.001 | 8,043 |
-| Sharing, same property | Both cities | + tradition, nearby congregations | +3.46 (0.95) | <0.001 | 8,043 |
+| Sharing, same property | All cities | City only | +2.47 (0.86) | 0.004 | 9,102 |
+| Sharing, same property | All cities | + tradition | +2.68 (0.88) | 0.002 | 9,102 |
+| Sharing, same property | All cities | + tradition, nearby congregations | +2.76 (0.90) | 0.002 | 9,102 |
 | Sharing, same property | NYC | City only | +3.23 (1.07) | 0.003 | 7,099 |
 | Sharing, same property | NYC | + tradition | +3.49 (1.11) | 0.002 | 7,099 |
 | Sharing, same property | NYC | + tradition, nearby congregations | +3.71 (1.12) | <0.001 | 7,099 |
 | Sharing, same property | DC | City only | +2.15 (1.17) | 0.067 | 944 |
 | Sharing, same property | DC | + tradition | +2.18 (1.17) | 0.063 | 944 |
 | Sharing, same property | DC | + tradition, nearby congregations | +2.10 (1.22) | 0.086 | 944 |
-| Multi-use (2+ uses) | Both cities | City only | +4.37 (1.03) | <0.001 | 7,770 |
-| Multi-use (2+ uses) | Both cities | + tradition | +4.53 (1.04) | <0.001 | 7,770 |
-| Multi-use (2+ uses) | Both cities | + tradition, nearby congregations | +5.03 (1.03) | <0.001 | 7,770 |
+| Sharing, same property | Charlotte | City only | -2.20 (1.53) | 0.150 | 1,059 |
+| Sharing, same property | Charlotte | + tradition | -2.29 (1.54) | 0.136 | 1,059 |
+| Sharing, same property | Charlotte | + tradition, nearby congregations | -2.67 (1.58) | 0.091 | 1,059 |
+| Multi-use (2+ uses) | All cities | City only | +3.98 (0.92) | <0.001 | 8,824 |
+| Multi-use (2+ uses) | All cities | + tradition | +4.13 (0.93) | <0.001 | 8,824 |
+| Multi-use (2+ uses) | All cities | + tradition, nearby congregations | +4.50 (0.93) | <0.001 | 8,824 |
 | Multi-use (2+ uses) | NYC | City only | +4.58 (1.22) | <0.001 | 6,842 |
 | Multi-use (2+ uses) | NYC | + tradition | +4.79 (1.25) | <0.001 | 6,842 |
 | Multi-use (2+ uses) | NYC | + tradition, nearby congregations | +5.34 (1.23) | <0.001 | 6,842 |
 | Multi-use (2+ uses) | DC | City only | +3.28 (1.07) | 0.002 | 928 |
 | Multi-use (2+ uses) | DC | + tradition | +3.24 (1.09) | 0.003 | 928 |
 | Multi-use (2+ uses) | DC | + tradition, nearby congregations | +3.45 (1.15) | 0.003 | 928 |
-| In a store, office or loft unit | Both cities | City only | -1.38 (1.43) | 0.334 | 8,043 |
-| In a store, office or loft unit | Both cities | + tradition | -1.03 (1.38) | 0.453 | 8,043 |
-| In a store, office or loft unit | Both cities | + tradition, nearby congregations | -1.38 (1.34) | 0.304 | 8,043 |
+| Multi-use (2+ uses) | Charlotte | City only | +0.90 (1.16) | 0.434 | 1,054 |
+| Multi-use (2+ uses) | Charlotte | + tradition | +0.85 (1.13) | 0.451 | 1,054 |
+| Multi-use (2+ uses) | Charlotte | + tradition, nearby congregations | +0.56 (1.16) | 0.628 | 1,054 |
+| In a store, office or loft unit | All cities | City only | -1.07 (1.29) | 0.405 | 9,102 |
+| In a store, office or loft unit | All cities | + tradition | -0.72 (1.24) | 0.562 | 9,102 |
+| In a store, office or loft unit | All cities | + tradition, nearby congregations | -1.10 (1.20) | 0.362 | 9,102 |
 | In a store, office or loft unit | NYC | City only | -1.90 (1.70) | 0.264 | 7,099 |
 | In a store, office or loft unit | NYC | + tradition | -1.52 (1.64) | 0.352 | 7,099 |
 | In a store, office or loft unit | NYC | + tradition, nearby congregations | -1.93 (1.59) | 0.225 | 7,099 |
 | In a store, office or loft unit | DC | City only | +1.29 (1.49) | 0.386 | 944 |
 | In a store, office or loft unit | DC | + tradition | +1.31 (1.45) | 0.368 | 944 |
 | In a store, office or loft unit | DC | + tradition, nearby congregations | +1.39 (1.44) | 0.336 | 944 |
+| In a store, office or loft unit | Charlotte | City only | +1.44 (1.81) | 0.429 | 1,059 |
+| In a store, office or loft unit | Charlotte | + tradition | +1.63 (1.83) | 0.373 | 1,059 |
+| In a store, office or loft unit | Charlotte | + tradition, nearby congregations | +1.08 (1.89) | 0.568 | 1,059 |
 
 ## Caveats
 
 - Assessed land values are model estimates; NYC's class 4 land values in particular are an allocation of an income-based total. They rank places by price well, less well as levels.
 - Sharing in NYC is likely understated where pairs are split across neighbouring lots (the near-miss check in the map page), and that happens more in dense, expensive areas.
 - Prices and congregation density rise together; the third model holds nearby congregations fixed.
-- Charlotte is not included: its parcel pull has no value fields yet.
+- Charlotte has only 15 planning areas to cluster on, so its own standard errors are rough.
