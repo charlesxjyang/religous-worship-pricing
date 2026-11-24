@@ -254,7 +254,7 @@ def analysis(con) -> str:
       "usable website.\n")
     w(f"## By {config.AREA_LABEL}\n")
     w(md_table(q(f"""
-        SELECT borough AS {config.AREA_LABEL}, count(*) AS congregations,
+        SELECT borough AS "{config.AREA_LABEL}", count(*) AS congregations,
                round(100 * avg((others_headline >= 1)::INT), 0) AS pct_sharing,
                round(100 * avg(other_use::INT), 0) AS pct_other_use_building,
                round(100 * avg((others_headline >= 1 OR other_use)::INT), 0) AS pct_either

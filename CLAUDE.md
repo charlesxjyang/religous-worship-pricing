@@ -37,9 +37,13 @@ Status:
 - [x] Step 2: places and schools attached to lots; lots flagged.
 - [x] Step 3: recall check.
 - [x] Step 4a: websites crawled (`data/nyc/raw/web/`).
-- [ ] Step 4b: extraction, waiting for `WORSHIP_ANTHROPIC_API_KEY`
-  (run `--estimate`, then `--limit 50` as a pilot, then all).
-- [ ] Step 4c–6: rerun after 4b. Until then they run on listing lots only.
+- [x] Step 4b: extraction (prompt v0.2) done for NYC and DC in a separate
+  session that had the key (about $5.20 in all). Charlotte: not yet; its
+  reports are on listing lots only (estimate $0.73).
+- [x] Step 4c–6 rerun after extraction for NYC and DC.
+- Only a session that has run extraction holds its results (data/ is not in
+  git): do not regenerate a city's committed reports from a database without
+  them, or the post-extraction numbers are overwritten.
 - [ ] Charles checks the 50 rows.
 - [x] Cross-checks (Charles, 2026-11-23: "add other deconflict strategies, e.g.
   IRS"): step 2c loads IRS EO BMF religious organizations and geocodes them;

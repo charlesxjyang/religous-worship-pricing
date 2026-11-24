@@ -24,6 +24,18 @@ def main():
     deg = NEAR_M / 80_000
     # DC's parcel records carry no floor area; its land use 08 already excludes vacant lots.
     has_building = "f.bldgarea > 0" if config.CITY == "nyc" else "true"
+    # DC and Charlotte relabel religiously exempt lots as M9 (step 1). Exempt
+    # parsonages, cemeteries and church-owned shops are religious property but
+    # not worship sites, so the recall test uses the lot's own use code there.
+    src_col = next((c for c in ("bldgclass_usecode", "bldgclass_landuse")
+                    if con.execute("SELECT count(*) FROM duckdb_columns() WHERE table_name = 'pluto' "
+                                   f"AND column_name = '{c}'").fetchone()[0]), None)
+    src_class = f"coalesce(src.{src_col}, f.bldgclass)" if src_col else "f.bldgclass"
+    src_join = (f"LEFT JOIN (SELECT bbl, any_value({src_col}) AS {src_col} FROM pluto GROUP BY 1) src USING (bbl)"
+                if src_col else "")
+    # Institutional use: NYC land use 08; elsewhere the lot's own class letter
+    # (school, health, government, hall, theatre), not houses or cemeteries.
+    institutional = (f"left({src_class}, 1) IN ('W', 'I', 'Y', 'P', 'J')" if src_col else "f.landuse = 8")
     # NYC's BBL starts with the borough number; elsewhere, find the area spatially.
     area_join = ("LEFT JOIN boroughs b ON b.borocode = CAST(left(CAST(w.bbl AS VARCHAR), 1) AS INT)"
                  if config.CITY == "nyc" else
@@ -32,12 +44,13 @@ def main():
         CREATE OR REPLACE TABLE recall_lots AS
         WITH worship_lots AS (
           SELECT f.*, t.geom,
-                 CASE WHEN f.bldgclass IN ('M1', 'M9') THEN 'M1/M9 building class'
+                 CASE WHEN {src_class} IN ('M1', 'M9') THEN 'M1/M9 building class'
                       ELSE 'religious owner, institutional use' END AS why
           FROM lot_flags f
           JOIN (SELECT bbl, ST_Union_Agg(geom) AS geom FROM taxlots GROUP BY bbl) t USING (bbl)
-          WHERE f.bldgclass IN ('M1', 'M9')
-             OR (f.rel_owner AND f.landuse = 8 AND {has_building}
+          {src_join}
+          WHERE {src_class} IN ('M1', 'M9')
+             OR (f.rel_owner AND {institutional} AND {has_building}
                  AND NOT regexp_matches(f.ownername, '{NOT_WORSHIP_OWNER}'))
         ), on_lot AS (
           SELECT bbl, count(*) AS n_on_lot FROM place_lot GROUP BY bbl
