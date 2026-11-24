@@ -176,20 +176,22 @@ Capture-recapture (Chapman). The lists are not independent and IRS keeps closed 
 
 | why | borough | lots | likely_misses |
 | --- | --- | --- | --- |
-| M1/M9 building class | Ward 1 | 64 | 26 |
-| M1/M9 building class | Ward 2 | 166 | 35 |
-| M1/M9 building class | Ward 3 | 73 | 24 |
-| M1/M9 building class | Ward 4 | 176 | 37 |
-| M1/M9 building class | Ward 5 | 245 | 75 |
-| M1/M9 building class | Ward 6 | 133 | 15 |
-| M1/M9 building class | Ward 7 | 211 | 42 |
-| M1/M9 building class | Ward 8 | 167 | 49 |
-| religious owner, institutional use | Ward 2 | 4 | 3 |
-| religious owner, institutional use | Ward 3 | 2 | 0 |
-| religious owner, institutional use | Ward 5 | 3 | 2 |
+| M1/M9 building class | Ward 1 | 35 | 6 |
+| M1/M9 building class | Ward 2 | 108 | 10 |
+| M1/M9 building class | Ward 3 | 39 | 5 |
+| M1/M9 building class | Ward 4 | 110 | 7 |
+| M1/M9 building class | Ward 5 | 107 | 17 |
+| M1/M9 building class | Ward 6 | 86 | 5 |
+| M1/M9 building class | Ward 7 | 135 | 10 |
+| M1/M9 building class | Ward 8 | 68 | 1 |
+| religious owner, institutional use | Ward 1 | 1 | 1 |
+| religious owner, institutional use | Ward 2 | 6 | 5 |
+| religious owner, institutional use | Ward 3 | 3 | 1 |
+| religious owner, institutional use | Ward 4 | 3 | 0 |
+| religious owner, institutional use | Ward 5 | 4 | 1 |
 | religious owner, institutional use | Ward 6 | 1 | 1 |
 | religious owner, institutional use | Ward 7 | 4 | 2 |
-| religious owner, institutional use | Ward 8 | 4 | 2 |
+| religious owner, institutional use | Ward 8 | 2 | 1 |
 
 The likely misses, with owner and address, are in `v0/dc/private/dc_recall_misses.csv`.
 
