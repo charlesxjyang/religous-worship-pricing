@@ -1,6 +1,6 @@
 # Version 0 report: Washington, DC
 
-Run 2026-11-24. 1,300 Overture places in the seven worship categories. Colocation is judged at the lot where each congregation gathers: the address its own website gives for services when we could place it, otherwise its listing. Extraction used Claude Haiku 5.5 on 603 sites ($0.84).
+Run 2026-11-24. 1,300 Overture places in the seven worship categories. Colocation is judged at the lot where each congregation gathers: the address its own website gives for services when we could place it, otherwise its listing. Extraction used Claude Haiku 5.5 on 581 sites ($0.81).
 
 ## From listing to gathering place
 
@@ -9,44 +9,44 @@ Run 2026-11-24. 1,300 Overture places in the seven worship categories. Colocatio
 | Places | 1300 | 100% |
 | With any website or social link | 994 | 76% |
 | With a fetchable website (not social media) | 961 | 74% |
-| Homepage fetched | 666 | 51% |
-| Website confirmed as this congregation's (yes or likely) | 418 | 32% |
-| Weekly main services found, with evidence | 305 | 23% |
-| Gathering place from website, placed on a lot | 327 | 25% |
-| ... on a different lot than the listing | 57 | 4% |
+| Homepage fetched | 643 | 49% |
+| Website confirmed as this congregation's (yes or likely) | 403 | 31% |
+| Weekly main services found, with evidence | 293 | 23% |
+| Gathering place from website, placed on a lot | 308 | 24% |
+| ... on a different lot than the listing | 54 | 4% |
 
 ## Colocation by tradition
 
 | tradition | school | shared | commercial | single-use | unknown |
 | --- | --- | --- | --- | --- | --- |
 | Buddhist | 1 | 1 | 2 | 3 | 0 |
-| Catholic | 10 | 26 | 10 | 29 | 13 |
+| Catholic | 11 | 24 | 9 | 30 | 13 |
 | Hindu | 0 | 0 | 1 | 0 | 0 |
-| Jewish | 0 | 5 | 0 | 11 | 3 |
+| Jewish | 0 | 4 | 0 | 12 | 3 |
 | Muslim | 1 | 2 | 3 | 6 | 2 |
 | Orthodox Christian | 0 | 0 | 0 | 6 | 0 |
-| Protestant and other Christian | 29 | 228 | 102 | 427 | 164 |
+| Protestant and other Christian | 31 | 220 | 100 | 429 | 167 |
 | Sikh | 0 | 0 | 1 | 1 | 0 |
-| Unknown | 13 | 45 | 47 | 49 | 59 |
+| Unknown | 13 | 44 | 48 | 53 | 59 |
 
 Colocation by where the address came from:
 
 | address_basis | school | shared | commercial | single-use | unknown |
 | --- | --- | --- | --- | --- | --- |
-| listing | 33 | 209 | 145 | 373 | 213 |
-| website | 21 | 98 | 21 | 159 | 28 |
+| listing | 35 | 206 | 148 | 387 | 216 |
+| website | 22 | 89 | 16 | 153 | 28 |
 
-Of the school flags, 21 are a private school on a religious-owned lot: most likely the congregation's own school, not a rental. The full rules split these out as "own school on campus".
+Of the school flags, 22 are a private school on a religious-owned lot: most likely the congregation's own school, not a rental. The full rules split these out as "own school on campus".
 
 ## Weekly main services, where found
 
 | tradition | places_with_schedule | mean_main | median_main | pct_two_or_more | mean_all_weekly |
 | --- | --- | --- | --- | --- | --- |
-| Protestant and other Christian | 261 | 1.2 | 1.0 | 14.0 | 1.9 |
-| Catholic | 25 | 3.5 | 4.0 | 76.0 | 10.9 |
-| Jewish | 9 | 1.6 | 2.0 | 56.0 | 2.4 |
-| Unknown | 5 | 1.2 | 1.0 | 20.0 | 2.0 |
-| Orthodox Christian | 2 | 1.0 | 1.0 | 0.0 | 2.0 |
+| Protestant and other Christian | 249 | 1.2 | 1.0 | 15.0 | 2.0 |
+| Catholic | 23 | 3.3 | 3.0 | 78.0 | 10.8 |
+| Jewish | 8 | 1.5 | 1.5 | 50.0 | 2.4 |
+| Unknown | 6 | 1.2 | 1.0 | 17.0 | 2.0 |
+| Orthodox Christian | 4 | 1.3 | 1.0 | 25.0 | 2.3 |
 | Muslim | 2 | 1.0 | 1.0 | 0.0 | 1.0 |
 | Sikh | 1 | 1.0 | 1.0 | 0.0 | 2.0 |
 
@@ -54,37 +54,36 @@ Of the school flags, 21 are a private school on a religious-owned lot: most like
 
 | homepage | places |
 | --- | --- |
-| ok | 666 |
+| ok | 643 |
 | (no website) | 339 |
 | dead domain (proxy could not connect) | 110 |
-| connection or TLS error | 65 |
-| robots_disallowed | 56 |
-| http_404 | 28 |
+| connection or TLS error | 91 |
+| robots_disallowed | 55 |
+| http_404 | 27 |
 | http_403 | 19 |
 | empty | 15 |
 | http_301 | 1 |
-| http_500 | 1 |
 
 Website judged against the listing:
 
 | site_match | places |
 | --- | --- |
-| yes | 376 |
-| no | 207 |
-| likely | 42 |
-| unclear | 26 |
-| (not extracted) | 15 |
+| yes | 365 |
+| no | 198 |
+| likely | 38 |
+| unclear | 25 |
+| (not extracted) | 17 |
 
 Evidence check (items whose quote was not found on the page are dropped):
 
 | key | items |
 | --- | --- |
-| gathering_locations_dropped | 25.0 |
-| gathering_locations_ok | 354.0 |
-| mailing_dropped | 8.0 |
-| services_dropped | 54.0 |
-| services_ok | 916.0 |
-| shares_space_with_ok | 29.0 |
+| gathering_locations_dropped | 28.0 |
+| gathering_locations_ok | 332.0 |
+| mailing_dropped | 7.0 |
+| services_dropped | 39.0 |
+| services_ok | 894.0 |
+| shares_space_with_ok | 24.0 |
 
 ## Cross-checks across sources
 
@@ -96,18 +95,18 @@ Lots where two or more congregations seem to gather, as each merge rule is added
 
 | merge_keys | congregations | lots_with_2plus | congregations_on_those_lots |
 | --- | --- | --- | --- |
-| website or same name | 1214 | 204 | 478 |
-| + phone | 1174 | 182 | 416 |
-| + name match | 1156 | 170 | 386 |
-| + IRS EIN | 1156 | 170 | 386 |
+| website or same name | 1215 | 200 | 466 |
+| + phone | 1177 | 177 | 405 |
+| + name match | 1162 | 168 | 381 |
+| + IRS EIN | 1162 | 168 | 381 |
 
 Evidence behind each "shared" flag after merging:
 
 | shared_evidence | places | lots |
 | --- | --- | --- |
-| listings only | 236 | 104 |
-| two or more IRS congregations | 43 | 20 |
-| website says so | 28 | 24 |
+| listings only | 233 | 104 |
+| two or more IRS congregations | 39 | 18 |
+| website says so | 23 | 19 |
 
 ### IRS registrations
 
@@ -122,9 +121,9 @@ Overture listings matched to an IRS registration (same lot, or a unique name mat
 
 | tradition | places | matched | pct_matched | on_same_lot | matched_school_or_support |
 | --- | --- | --- | --- | --- | --- |
-| Protestant and other Christian | 950 | 341 | 36.0 | 244 | 9 |
-| Unknown | 213 | 35 | 16.0 | 21 | 8 |
-| Catholic | 88 | 25 | 28.0 | 20 | 4 |
+| Protestant and other Christian | 947 | 338 | 36.0 | 243 | 8 |
+| Unknown | 217 | 36 | 17.0 | 22 | 8 |
+| Catholic | 87 | 27 | 31.0 | 20 | 5 |
 | Jewish | 19 | 5 | 26.0 | 3 | 0 |
 | Muslim | 14 | 4 | 29.0 | 4 | 0 |
 | Buddhist | 7 | 4 | 57.0 | 4 | 1 |
@@ -136,7 +135,7 @@ IRS congregations that no Overture listing matched, by the lot of their register
 
 | lot_type | congregations | lot_has_an_overture_listing | registered_since_2010 |
 | --- | --- | --- | --- |
-| house or residential building | 162 | 6 | 47 |
+| house or residential building | 161 | 6 | 47 |
 | religious lot owned by another body | 88 | 68 | 18 |
 | PO box | 70 | 0 | 12 |
 | commercial lot | 53 | 7 | 13 |
@@ -152,25 +151,25 @@ Lots named by each source. Worship lot = building class M1/M9, or a religious ow
 
 | overture | worship_lot | osm_building | irs | lots |
 | --- | --- | --- | --- | --- |
-| 0 | 1 | 0 | 0 | 574 |
-| 1 | 0 | 0 | 0 | 306 |
-| 0 | 0 | 0 | 1 | 304 |
-| 1 | 1 | 0 | 0 | 190 |
-| 1 | 1 | 1 | 1 | 146 |
-| 1 | 1 | 0 | 1 | 126 |
-| 1 | 1 | 1 | 0 | 126 |
-| 1 | 0 | 0 | 1 | 67 |
-| 0 | 1 | 1 | 0 | 53 |
-| 0 | 1 | 0 | 1 | 30 |
-| 0 | 0 | 1 | 0 | 16 |
-| 1 | 0 | 1 | 0 | 11 |
+| 1 | 0 | 0 | 0 | 353 |
+| 0 | 0 | 0 | 1 | 313 |
+| 1 | 1 | 0 | 0 | 148 |
+| 1 | 1 | 1 | 1 | 142 |
+| 1 | 1 | 1 | 0 | 121 |
+| 0 | 1 | 0 | 0 | 118 |
+| 1 | 1 | 0 | 1 | 110 |
+| 1 | 0 | 0 | 1 | 84 |
+| 0 | 1 | 1 | 0 | 43 |
+| 0 | 0 | 1 | 0 | 27 |
+| 0 | 1 | 0 | 1 | 21 |
+| 1 | 0 | 1 | 0 | 16 |
 
 Capture-recapture (Chapman). The lists are not independent and IRS keeps closed churches on file, so these are rough indications, not counts:
 
 | pair | list_1 | list_2 | in_both | estimated_total |
 | --- | --- | --- | --- | --- |
-| Congregations: Overture x IRS | 1156 | 848 | 362 | 2705 |
-| Lots: Overture x OSM buildings | 974 | 363 | 285 | 1240 |
+| Congregations: Overture x IRS | 1162 | 848 | 362 | 2719 |
+| Lots: Overture x OSM buildings | 978 | 363 | 283 | 1254 |
 
 ## Recall check: worship lots with no Overture place
 
