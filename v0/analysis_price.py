@@ -1,4 +1,4 @@
-"""Do congregations share space more where commercial space is dear? (NYC, DC, Charlotte)
+"""Do congregations share space more where commercial space is dear? (NYC, DC, Charlotte, SF, Houston)
 
 Price: assessed market value of land per square foot of lot, for retail and
 office lots, the kind of space a congregation rents (NYC building classes K
@@ -12,12 +12,20 @@ and O; condominium lots left out, since their land value is a share).
 - Charlotte: Mecklenburg County's CAMA land value (amt_landvalue, 2023
   revaluation, market value) over the parcel polygon's area, pulled here for
   retail and office property uses in the city.
+- San Francisco: assessed land value over parcel area for retail and office
+  parcels sold since 2015. Proposition 13 keeps a parcel's assessment at its
+  last sale price plus at most 2% a year, so older assessments are far below
+  market (a median $158 per sq ft for retail parcels last sold before 2000,
+  against $554 for those sold since 2015).
+- Houston: HCAD market land value over land area (Texas appraises at market
+  every year).
 
 Each congregation gets the median over commercial lots within 1 km of its
 listing point (2 km where fewer than 10 lie within 1 km). Areas for maps and
 clustered errors: NYC community districts, DC neighborhood clusters,
 Charlotte's 15 community planning areas (few clusters: treat Charlotte's own
-standard errors as rough).
+standard errors as rough), SF's 41 analysis neighborhoods, Houston's 88 super
+neighborhoods.
 
 The test is a linear probability model at the congregation level: outcome
 (sharing worship space, sharing the property, multi-use, meeting in a store or
@@ -38,6 +46,7 @@ v0/analysis_price.md (aggregates only) and v0/private/price_viz.json
 
 import json
 import math
+import os
 import urllib.parse
 
 import duckdb
@@ -48,8 +57,16 @@ import statsmodels.formula.api as smf
 import config
 from common import download
 
-CITIES = ("nyc", "dc", "charlotte")
-LABEL = {"nyc": "NYC", "dc": "DC", "charlotte": "Charlotte"}
+# PRICE_CITIES=nyc,dc runs a subset (for testing while another city's database is busy).
+CITIES = tuple(os.environ.get("PRICE_CITIES", "nyc,dc,charlotte,sf,houston").split(","))
+LABEL = {"nyc": "NYC", "dc": "DC", "charlotte": "Charlotte", "sf": "SF", "houston": "Houston"}
+SF_SOLD_SINCE = "2015-01-01"
+# Saiz (2010, QJE), Table VI: long-run housing supply elasticity of the metro area, with
+# Table III's share of land undevelopable (water, wetlands, steep slopes) and the Wharton
+# regulation index. Metro names as printed there.
+SAIZ = {"sf": (0.66, 73.14, 0.72, "San Francisco, CA"), "nyc": (0.76, 40.42, 0.65, "New York, NY"),
+        "dc": (1.61, 13.95, 0.31, "Washington, DC-MD-VA-WV"), "houston": (2.30, 8.40, -0.40, "Houston, TX"),
+        "charlotte": (3.09, 4.69, -0.53, "Charlotte-Gastonia-Rock Hill, NC-SC")}
 RADIUS_M = 1000
 FALLBACK_M = 2000
 MIN_LOTS = 10
@@ -61,6 +78,11 @@ DC_RETAIL_OFFICE = ["004", "041", "042", "043", "044", "045", "046", "047", "048
                     "006", "069", "005", "051", "052", "053", "056", "057", "058", "059", "061"]
 CLT_CAMA = "https://meckgis.mecklenburgcountync.gov/server/rest/services/TaxParcel_Camaownershipvalues/FeatureServer/0"
 CLT_AREAS = "https://services.arcgis.com/9Nl857LBlQVyzq54/arcgis/rest/services/Community_Planning_Areas/FeatureServer/0"
+CENSUS_REPORTER = "https://api.censusreporter.org/1.0"
+ZCTA_GROUPS = {"nyc": ["05000US36005", "05000US36047", "05000US36061", "05000US36081", "05000US36085"],
+               "dc": ["04000US11"], "charlotte": ["05000US37119"], "sf": ["05000US06075"], "houston": ["05000US48201"]}
+SF_NHOODS = "https://data.sf.gov/resource/j2bu-swwd.geojson?$limit=100"
+HOU_SUPER = "https://services.arcgis.com/NummVBqZSIJKUeVR/arcgis/rest/services/COH_Super_Neighborhoods_view/FeatureServer/3"
 CLT_OFFICE = ["OFFICE", "MEDICAL OFFICE", "BANK", "OFFICE HIGH RISE - > 6 STORIES", "LABORATORY / RESEARCH"]
 CLT_RETAIL = ["COMMERCIAL", "RESTAURANT", "FAST FOOD", "AUTO SALES AND SERVICE", "CONVENIENCE STORE",
               "SHOPPING CENTER - STRIP", "CAR WASH", "SERVICE GARAGE", "SUPERMARKET", "SHOPPING CENTER - MALL",
@@ -102,6 +124,32 @@ def clt_areas(raw):
     return f"""SELECT Name AS area_id, Name AS area_name, false AS non_residential, geom FROM ST_Read('{path}')"""
 
 
+def load_zcta(con, city):
+    """ZIP code areas (ZCTAs) with ACS 2020-2024 median household income, from Census Reporter."""
+    zdir = config.ROOT / "data" / "zcta"
+    parts, income = [], {}
+    for g in ZCTA_GROUPS[city]:
+        geo = download(f"{CENSUS_REPORTER}/geo/show/tiger2023?geo_ids=860|{g}", zdir / f"cr_{g}.geojson")
+        inc = download(f"{CENSUS_REPORTER}/data/show/latest?table_ids=B19013,B01003&geo_ids=860|{g}", zdir / f"inc_{g}.json")
+        parts.append(f"SELECT name AS zip, geom FROM ST_Read('{geo}')")
+        for gid, v in json.loads(inc.read_text())["data"].items():
+            income[gid[-5:]] = v["B19013"]["estimate"].get("B19013001")
+    con.execute(f"CREATE OR REPLACE TEMP TABLE zcta AS SELECT zip, any_value(geom) AS geom FROM ({' UNION ALL '.join(parts)}) GROUP BY zip")
+    con.register("zinc", pd.DataFrame({"zip": list(income), "zip_income": [income[z] for z in income]}))
+
+
+def sf_areas(raw):
+    path = download(SF_NHOODS, raw / "sf_analysis_neighborhoods.geojson")
+    return f"""SELECT nhood AS area_id, nhood AS area_name, false AS non_residential, geom FROM ST_Read('{path}')"""
+
+
+def houston_areas(raw):
+    q = urllib.parse.urlencode({"where": "1=1", "outFields": "POLYID,SNBNAME", "outSR": 4326, "f": "geojson"})
+    path = download(f"{HOU_SUPER}/query?{q}", raw / "houston_super_neighborhoods.geojson")
+    return f"""SELECT CAST(POLYID AS VARCHAR) AS area_id, SNBNAME AS area_name, false AS non_residential, geom
+               FROM ST_Read('{path}')"""
+
+
 def arcgis_rows(layer, where, fields, dest):
     """All rows of an ArcGIS layer matching where, 2,000 per request, cached under dest."""
     parts, offset = [], 0
@@ -110,11 +158,33 @@ def arcgis_rows(layer, where, fields, dest):
                                     "resultOffset": offset, "resultRecordCount": 2000,
                                     "returnGeometry": "false", "f": "json"})
         p = download(f"{layer}/query?{q}", dest / f"part-{offset // 2000:04d}.json")
-        feats = json.loads(p.read_text()).get("features", [])
+        page = json.loads(p.read_text())
+        if "error" in page:  # don't keep a cached error as if it were an empty page
+            p.unlink()
+            raise RuntimeError(f"{layer}: {page['error']}")
+        feats = page.get("features", [])
         parts += [f["attributes"] for f in feats]
         if len(feats) < 2000:
             return pd.DataFrame(parts)
         offset += 2000
+
+
+def church_years(city, raw):
+    """Year built of church buildings where the parcel records lack it: DC's commercial CAMA
+    records with use code 081 (religious), and Charlotte's CAMA buildings typed CHURCH on
+    parcels whose property use is CHURCH in the city."""
+    if city == "dc":
+        rows = arcgis_rows(f"{config.DCGIS}/Property_and_Land_WebMercator/MapServer/23", "USECODE = 81",
+                           "OBJECTID,SSL,AYB", raw / "dc_church_years")
+        return rows.groupby("SSL")["AYB"].min().tolist() if len(rows) else []
+    if city == "charlotte":
+        bld = arcgis_rows("https://meckgis.mecklenburgcountync.gov/server/rest/services/CamaDataTables/FeatureServer/1",
+                          "buildingtype = 'CHURCH'", "objectid,propertyid,yearbuilt", raw / "clt_church_years")
+        own = arcgis_rows(CLT_CAMA, "municipality_desc = 'CHARLOTTE' AND txt_propertyuse_desc = 'CHURCH'",
+                          "OBJECTID,propertyid", raw / "clt_church_parcels")
+        bld = bld[bld["propertyid"].isin(set(own["propertyid"]))]
+        return bld.groupby("propertyid")["yearbuilt"].min().tolist() if len(bld) else []
+    return []
 
 
 def clt_land_values(raw):
@@ -144,7 +214,8 @@ def build_city(city):
     cfg = city_cfg(city)
     con = duckdb.connect(str(cfg["db"]))
     con.execute("LOAD spatial")
-    areas_sql = {"nyc": nyc_areas, "dc": dc_areas, "charlotte": clt_areas}[city](cfg["raw"])
+    areas_sql = {"nyc": nyc_areas, "dc": dc_areas, "charlotte": clt_areas,
+                 "sf": sf_areas, "houston": houston_areas}[city](cfg["raw"])
     con.execute(f"CREATE OR REPLACE TEMP TABLE areas AS {areas_sql}")
 
     # Commercial lots: a point and a land price per square foot.
@@ -155,6 +226,19 @@ def build_city(city):
             FROM pluto
             WHERE left(bldgclass, 1) IN ('K', 'O') AND lotarea >= 200 AND assessland > 0
               AND latitude IS NOT NULL""")
+    elif city in ("sf", "houston"):
+        # Both loaders keep land value and lot area on pluto; SF keeps only recent sales
+        # (Proposition 13), and lot area comes from the parcel polygon in both.
+        recent = (f"AND NOT p.condo_lot AND p.last_sale >= DATE '{SF_SOLD_SINCE}'" if city == "sf" else "")
+        con.execute(f"""CREATE OR REPLACE TABLE commercial_lots AS
+            WITH lots AS (SELECT p.bbl, left(p.bldgclass, 1) AS kind, p.assessland,
+                                 ST_Area(ST_Transform(t.geom, 'EPSG:4326', 'EPSG:3857', always_xy := true))
+                                   * cos(radians(ST_Y(ST_Centroid(t.geom)))) ^ 2 * 10.7639 AS area_sqft,
+                                 ST_Centroid(t.geom) AS pt
+                          FROM pluto p JOIN taxlots t USING (bbl)
+                          WHERE left(p.bldgclass, 1) IN ('K', 'O') AND p.assessland > 0 {recent})
+            SELECT bbl, ST_Y(pt) AS lat, ST_X(pt) AS lon, kind, assessland / area_sqft AS land_psf
+            FROM lots WHERE area_sqft >= 200""")
     elif city == "charlotte":
         vals = clt_land_values(cfg["raw"])
         con.register("vals", vals)
@@ -211,6 +295,18 @@ def build_city(city):
         LEFT JOIN areas ar ON ST_Contains(ar.geom, ST_Point(c.lon, c.lat))""")
     con.execute("UPDATE cong_price SET local_psf = NULL WHERE radius_m IS NULL")
 
+    load_zcta(con, city)
+    con.execute("""CREATE OR REPLACE TEMP TABLE czip AS
+        SELECT c.cong_id, (SELECT zip FROM zcta z WHERE ST_Contains(z.geom, ST_Point(c.lon, c.lat)) LIMIT 1) AS zip
+        FROM cpts c""")
+    # Building size: floor area where the parcel record has it (NYC, SF, Houston), else the
+    # building footprint's area (DC, Charlotte), in square feet. Compared only within a city.
+    has_fp = con.execute("SELECT count(*) FROM duckdb_tables() WHERE table_name = 'buildings'").fetchone()[0] > 0
+    fp_join = ("""LEFT JOIN (SELECT 'ov:' || bid AS space_key,
+                         ST_Area(ST_Transform(geom, 'EPSG:4326', 'EPSG:3857', always_xy := true))
+                           * cos(radians(ST_Y(ST_Centroid(geom)))) ^ 2 * 10.7639 AS fp_sqft
+                  FROM buildings) fp ON fp.space_key = s.space_key""" if has_fp else "")
+    fp_col = "fp.fp_sqft" if has_fp else "NULL::DOUBLE"
     com = ", ".join(f"'{x}'" for x in COMMERCIAL)
     df = con.execute(f"""
         SELECT s.cong_id, '{city}' AS city, s.tradition, s.building_use,
@@ -220,9 +316,12 @@ def build_city(city):
                (s.building_use IN ({com}))::INT AS commercial_units,
                (s.building_use LIKE 'religious building%') AS in_religious,
                p.area_id, p.area_name, p.local_psf, p.radius_m, p.cong_1km,
-               b.bldgarea, b.yearbuilt
+               b.bldgarea, b.yearbuilt, zi.zip_income,
+               coalesce(CASE WHEN b.bldgarea > 0 THEN b.bldgarea END, {fp_col}) AS size_sqft
         FROM cong_sharing_raw s JOIN cong_price p USING (cong_id)
         LEFT JOIN cong_util_full u USING (cong_id)
+        LEFT JOIN czip cz USING (cong_id) LEFT JOIN zinc zi ON zi.zip = cz.zip
+        {fp_join}
         LEFT JOIN (SELECT bbl, any_value(bldgarea) AS bldgarea, any_value(yearbuilt) AS yearbuilt
                    FROM pluto GROUP BY bbl) b ON b.bbl = s.bbl
         WHERE s.headline""").df()
@@ -233,8 +332,17 @@ def build_city(city):
     geo = con.execute("""SELECT area_id, area_name, non_residential,
                                 ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.0003)) AS gj FROM areas""").df()
     with_extraction = con.execute("SELECT count(*) FROM extract_sites").fetchone()[0] > 0
+    # Church buildings' age: where land is easy to build on, congregations put up their own.
+    built = con.execute("""SELECT count(*), count(*) FILTER (WHERE yearbuilt > 1700),
+                                  median(yearbuilt) FILTER (WHERE yearbuilt > 1700),
+                                  avg((yearbuilt >= 1980)::INT) FILTER (WHERE yearbuilt > 1700)
+                           FROM pluto WHERE bldgclass = 'M1'""").fetchone()
     con.close()
-    return df, lots, area_price, geo, with_extraction
+    if built[1] < 0.5 * built[0]:
+        yrs = [y for y in church_years(city, cfg["raw"]) if y and y > 1700]
+        if yrs:
+            built = (len(yrs), len(yrs), float(np.median(yrs)), float(np.mean([y >= 1980 for y in yrs])))
+    return df, lots, area_price, geo, with_extraction, built
 
 
 def wilson(k, n, z=1.96):
@@ -245,7 +353,9 @@ def wilson(k, n, z=1.96):
 
 
 def fit(d, y, rhs):
-    d = d.dropna(subset=[y, "lp", "area_id"])
+    used = [v for v in ("lp", "ld", "la", "old", "linc", "lsize", "tradition") if v in rhs]
+    d = d.dropna(subset=[y, "area_id", *used])
+    d = d[np.isfinite(d[[v for v in used if v not in ("tradition",)]].astype(float)).all(axis=1)]
     m = smf.ols(f"{y} ~ {rhs}", data=d).fit(cov_type="cluster", cov_kwds={"groups": pd.factorize(d["city"] + d["area_id"])[0]})
     return 100 * m.params["lp"], 100 * m.bse["lp"], m.pvalues["lp"], int(m.nobs)
 
@@ -257,9 +367,9 @@ def md_table(rows, cols):
 
 
 def main():
-    frames, lots_info, viz, extracted = [], {}, {"areas": [], "geo": {"type": "FeatureCollection", "features": []}}, {}
+    frames, lots_info, viz, extracted, built = [], {}, {"areas": [], "geo": {"type": "FeatureCollection", "features": []}}, {}, {}
     for city in CITIES:
-        df, lots, area_price, geo, extracted[city] = build_city(city)
+        df, lots, area_price, geo, extracted[city], built[city] = build_city(city)
         frames.append(df)
         lots_info[city] = lots
         # area measures
@@ -295,6 +405,8 @@ def main():
     d["lp"] = np.log2(d["local_psf"])
     d["ld"] = np.log1p(d["cong_1km"])
     d["tradition"] = d["tradition"].fillna("Unknown")
+    d["linc"] = np.log2(d["zip_income"].astype(float))
+    d["lsize"] = np.log2(d["size_sqft"].astype(float).where(d["size_sqft"] > 0))
     has = d.dropna(subset=["lp"])
 
     # Pooled rates by local-price quintile within each city.
@@ -342,16 +454,36 @@ def main():
                 reg.append({"outcome": ylab, "sample": "NYC, religious buildings only", "model": mlab,
                             "b": round(b, 2), "se": round(se, 2), "p": float(p), "n": n})
     viz["regression"] = reg
+
+    # Robustness, city by city: does the price slope survive neighbourhood income (richer
+    # congregations need guests less) and building size (big buildings have room to host)?
+    base = "lp + C(tradition) + ld"
+    checks = [("Price, tradition, nearby congregations", base, False),
+              ("+ ZIP income", base + " + linc", False),
+              ("+ building size", base + " + lsize", False),
+              ("+ ZIP income and building size", base + " + linc + lsize", False),
+              ("Religious buildings only, + income and size", base + " + linc + lsize", True)]
+    robust = []
+    for city in CITIES:
+        c = has[has.city == city]
+        row = {"city": city}
+        for lab, rhs, rel in checks:
+            b, se, p, n = fit(c[c.in_religious] if rel else c, "shares_space", rhs)
+            row[lab] = {"b": round(b, 2), "se": round(se, 2), "p": float(p), "n": n}
+        robust.append(row)
+    viz["robust"] = robust
+    viz["saiz"] = {c: {"elasticity": v[0], "undevelopable": v[1], "wri": v[2], "metro": v[3]} for c, v in SAIZ.items()}
     viz["lots"] = {c: {"n": int(v[0]), "median": round(v[1]), "p25": round(v[2]), "p75": round(v[3])} for c, v in lots_info.items()}
 
     # Report (aggregates only).
     basis = ("website gathering addresses where extraction found them, else the listing"
              if all(extracted.values()) else "the Overture listing address (website extraction was not run in this database)")
     w = []
-    w.append("# Sharing and the local price of commercial space, NYC, DC and Charlotte\n")
+    w.append("# Sharing and the local price of commercial space, five cities\n")
     w.append(f"Congregations placed at {basis}. Price: assessed market value of land per square foot for retail "
              f"and office lots, median within {RADIUS_M:,} m of each congregation ({FALLBACK_M:,} m where fewer than "
-             f"{MIN_LOTS} lots lie within {RADIUS_M:,} m). NYC: PLUTO land assessment / 0.45; DC: OTR land value; Charlotte: county CAMA land value over parcel area. "
+             f"{MIN_LOTS} lots lie within {RADIUS_M:,} m). NYC: PLUTO land assessment / 0.45; DC: OTR land value; Charlotte: county CAMA land value over parcel area; "
+             f"SF: assessed land value of parcels sold since {SF_SOLD_SINCE[:4]} (Proposition 13); Houston: HCAD market land value. "
              "Assessed values are the assessor's estimate of market value, not observed rents.\n")
     w.append("## The price measure\n")
     rows = []
@@ -371,11 +503,51 @@ def main():
     w.append(md_table(qrows, list(qrows[0])))
     w.append("\n## Regression: percentage points per doubling of local land price\n")
     w.append("Linear probability models at the congregation level, standard errors clustered by community district "
-             "(NYC), neighborhood cluster (DC) or community planning area (Charlotte). Nearby congregations = log(1 + congregations within 1 km).\n\n")
+             "(NYC), neighborhood cluster (DC), community planning area (Charlotte), analysis neighborhood (SF) or super neighborhood (Houston). Nearby congregations = log(1 + congregations within 1 km).\n\n")
     rrows = [{"outcome": r["outcome"], "sample": r["sample"], "model": r["model"],
               "pp per doubling (SE)": f"{r['b']:+.2f} ({r['se']:.2f})",
               "p": "<0.001" if r["p"] < 0.001 else f"{r['p']:.3f}", "n": f"{r['n']:,}"} for r in reg]
     w.append(md_table(rrows, list(rrows[0])))
+    w.append("\n## Robustness: sharing worship space, by city\n")
+    w.append("Percentage points per doubling of local land price (SE). ZIP income: ACS 2020-2024 median household "
+             "income of the congregation's ZIP code. Building size: floor area from the parcel record (NYC, SF, "
+             "Houston) or the building footprint's area (DC, Charlotte).\n\n")
+    rob = []
+    for r in robust:
+        rob.append({"city": config.CITIES[r["city"]]["name"],
+                    **{lab: f"{r[lab]['b']:+.1f} ({r[lab]['se']:.1f})" for lab, _, _ in checks}})
+    w.append(md_table(rob, list(rob[0])))
+    w.append("\n## Levels by city\n")
+    w.append("Shares of congregations (listing placement). Church buildings are lots whose use code says church, "
+             "synagogue or chapel; for DC and Charlotte, whose parcel records carry no year built, they are the "
+             "assessor's commercial building records with a religious use (DC use code 081, Charlotte building "
+             "type CHURCH), counted per parcel.\n\n")
+    lv = []
+    for city in sorted(CITIES, key=lambda c: SAIZ[c][0]):
+        c = d[d.city == city]
+        rel = c[c.in_religious]
+        n_m1, n_yr, med_yr, new = built[city]
+        has_yr = n_yr >= 0.5 * n_m1
+        lv.append({"city": config.CITIES[city]["name"], "supply elasticity": SAIZ[city][0],
+                   "congregations": f"{len(c):,}", "sharing worship space": f"{100 * c.shares_space.mean():.1f}%",
+                   "in a religious building": f"{100 * c.in_religious.mean():.1f}%",
+                   "sharing, of those in religious buildings": f"{100 * rel.shares_space.mean():.1f}%",
+                   "in store, office or loft units": f"{100 * c.commercial_units.mean():.1f}%",
+                   "church buildings": f"{n_m1:,}",
+                   "median year built": f"{med_yr:.0f}" if has_yr else "n/a",
+                   "built since 1980": f"{100 * new:.0f}%" if has_yr else "n/a"})
+    w.append(md_table(lv, list(lv[0])))
+    viz["levels"] = lv
+    w.append("\n## Against how easily each metro can build\n")
+    w.append("Saiz (2010, Quarterly Journal of Economics), Table VI: long-run housing supply elasticity (low = hard "
+             "to build), with the share of land that is undevelopable and the Wharton regulation index from Table III.\n\n")
+    el = []
+    for city in sorted(CITIES, key=lambda c: SAIZ[c][0]):
+        r = next(x for x in robust if x["city"] == city)["Price, tradition, nearby congregations"]
+        el.append({"city": config.CITIES[city]["name"], "supply elasticity": SAIZ[city][0],
+                   "undevelopable land": f"{SAIZ[city][1]:.0f}%", "regulation index": SAIZ[city][2],
+                   "sharing, pts per doubling (SE)": f"{r['b']:+.1f} ({r['se']:.1f})", "p": "<0.001" if r["p"] < 0.001 else f"{r['p']:.3f}"})
+    w.append(md_table(el, list(el[0])))
     w.append("\n## Caveats\n")
     w.append("- Assessed land values are model estimates; NYC's class 4 land values in particular are an allocation "
              "of an income-based total. They rank places by price well, less well as levels.\n"

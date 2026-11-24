@@ -57,6 +57,10 @@ if config.CITY == "dc":
     KIND |= {"washington", "dc", "district", "columbia", "nw", "ne", "sw", "se"}
 if config.CITY == "charlotte":
     KIND |= {"charlotte", "nc", "carolina"}
+if config.CITY == "sf":
+    KIND |= {"san", "francisco", "sf", "ca", "california"}
+if config.CITY == "houston":
+    KIND |= {"houston", "tx", "texas"}
 DENOM = set("""
 baptist methodist presbyterian lutheran episcopal anglican pentecostal catholic
 roman orthodox greek russian ukrainian coptic armenian adventist seventh day

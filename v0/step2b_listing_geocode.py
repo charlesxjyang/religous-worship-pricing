@@ -68,6 +68,7 @@ def main():
 
     with ThreadPoolExecutor(WORKERS) as ex:
         list(ex.map(work, rows))
+    CACHE.parent.mkdir(parents=True, exist_ok=True)
     CACHE.write_text(json.dumps(cache))
     con.execute("""CREATE OR REPLACE TABLE listing_geo (id VARCHAR, query VARCHAR, label VARCHAR,
                    confidence DOUBLE, bbl BIGINT, bin VARCHAR, lat DOUBLE, lon DOUBLE, shift_m DOUBLE)""")

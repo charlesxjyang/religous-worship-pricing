@@ -52,7 +52,10 @@ Status:
   flag (`shared_evidence`).
 - Scope (Charles, 2026-11-23): NYC plus about two other cities to start.
   Washington, DC is the second and Charlotte, NC the third (Charles, 2026-11-23/24).
-- [x] Price test, NYC, DC and Charlotte (Charles, 2026-11-24, brought forward from the
+  San Francisco and Houston added (Charles, 2026-11-24) to test whether the price
+  slope follows how easily a metro can build: Saiz (2010) supply elasticities SF
+  0.66, NYC 0.76, DC 1.61, Houston 2.30, Charlotte 3.09.
+- [x] Price test, all five cities (Charles, 2026-11-24, brought forward from the
   plan's later phase): `v0/analysis_price.py` prices each congregation by the
   assessed land value of retail and office lots within 1 km and regresses
   sharing, multi-use and storefront use on it (`v0/analysis_price.md`). Use
@@ -60,32 +63,41 @@ Status:
   judged the wrong scale and the wrong market. First run used listing
   addresses (no extraction in that session); rerun after extraction.
   Charlotte land values come from the county CAMA layer, pulled in the script.
+  SF prices only retail and office parcels sold since 2015 (Proposition 13 keeps
+  older assessments near the purchase price). The script also checks each
+  city's slope against ZIP income and building size. `PRICE_CITIES=nyc,dc`
+  runs a subset.
 
 ## Cities
 
 Every script takes the city from the `CITY` environment variable (`nyc`,
-the default, `dc` or `charlotte`); `v0/config.py` holds the per-city settings,
-`v0/dc.py` and `v0/charlotte.py` the city loaders, and `v0/arcgis.py` and
+the default, `dc`, `charlotte`, `sf` or `houston`); `v0/config.py` holds the
+per-city settings, `v0/dc.py`, `v0/charlotte.py`, `v0/sf.py` and
+`v0/houston.py` the city loaders, and `v0/arcgis.py` and
 `v0/addrgeo.py` the shared ArcGIS paging and address-to-parcel geocoding.
 Outputs: NYC in `v0/`, others in `v0/<city>/`, each with a gitignored
 `private/` folder. Rebuild a city end to end with
-`v0/run_city.sh nyc|dc|charlotte` (extraction excluded), then `--after-extract`.
+`v0/run_city.sh <city>` (extraction excluded), then `--after-extract`.
 
-| Input | NYC | Washington, DC | Charlotte, NC |
-| --- | --- | --- | --- |
-| Subareas | 5 boroughs | 8 wards (DCGIS Ward - 2022) | 7 city council districts |
-| Parcels | PLUTO + DOF tax lots; key BBL | OTR owner polygons (ITSPE); key SSL, surrogate `bbl` | Mecklenburg Parcel_Landuse, Charlotte tax district; key PID, surrogate `bbl` |
-| Building type | DOF building class | DC use code mapped to DOF classes (`dc.USE_TO_CLASS`; 081 Religious = M1) | land-use description mapped to DOF classes (`charlotte.class_for`; CHURCH = M1) |
-| Religious ownership | class M, owner name | class M, owner name, RPTA exemption E1 | class M, owner name, exemption RELIGIOUS |
-| Geocoder | GeoSearch (BBL and BIN) | exact match to a parcel's premise address, else Census geocoder + parcel under the point; no building ID | exact match to county address points (with parent parcel), else Census; no building ID |
-| IRS file | eo_ny.csv | eo_dc.csv | eo_nc.csv, ZIP 282xx and city CHARLOTTE |
+| Input | NYC | Washington, DC | Charlotte, NC | San Francisco | Houston |
+| --- | --- | --- | --- | --- | --- |
+| Subareas | 5 boroughs | 8 wards (DCGIS Ward - 2022) | 7 city council districts | 11 supervisor districts (DataSF 2022) | 11 council districts (COH 2024) |
+| Parcels | PLUTO + DOF tax lots; key BBL | OTR owner polygons (ITSPE); key SSL, surrogate `bbl` | Mecklenburg Parcel_Landuse, Charlotte tax district; key PID, surrogate `bbl` | DataSF active parcels + secured roll 2025; key mapblklot, surrogate `bbl` | HCAD 2026 real_acct + parcel geodatabase, accounts in jurisdiction 061; key acct, surrogate `bbl` |
+| Building type | DOF building class | DC use code mapped to DOF classes (`dc.USE_TO_CLASS`; 081 Religious = M1) | land-use description mapped to DOF classes (`charlotte.class_for`; CHURCH = M1) | property class code (`sf.CLASS_OF`; W churches = M1) | commercial building type (`houston.TYPE_CLASS`; 4620 Religious = M1), else state class |
+| Religious ownership | class M, owner name | class M, owner name, RPTA exemption E1 | class M, owner name, exemption RELIGIOUS | class W, church (7) and religious (6) exemptions; no owner names (state law) | type 4620, state class X3, owner name |
+| Geocoder | GeoSearch (BBL and BIN) | exact match to a parcel's premise address, else Census geocoder + parcel under the point; no building ID | exact match to county address points (with parent parcel), else Census; no building ID | exact match to EAS addresses (with parcel), else Census; no building ID | exact match to HCAD site addresses, else Census; no building ID |
+| IRS file | eo_ny.csv | eo_dc.csv | eo_nc.csv, ZIP 282xx and city CHARLOTTE | eo_ca.csv, ZIP 941xx and city SAN FRANCISCO | eo_tx.csv, ZIP 770xx/772xx and city HOUSTON |
 
-In DC and Charlotte a lot with a religious tax exemption counts as a religious
+Outside NYC a lot with a religious tax exemption counts as a religious
 building whatever its use code (the exemption requires religious use).
+HCAD's files are zips and a file geodatabase under `data/houston/raw/hcad/`,
+unzipped to `hcad_x/` and `hcad_gis/` before step 1 (curved parcel shapes are
+linearised in `houston.linear_wkb`). Houston's parts outside Harris County are
+not covered. DataSF moved to data.sf.gov.
 
 **Sharing and multi-use** (Charles, 2026-11-24). Sharing means two distinct
 congregations using the same worship space: another congregation in the same
-*building* (NYC: BIN; DC and Charlotte: Overture building footprint, step 2e),
+*building* (NYC: BIN; elsewhere: Overture building footprint, step 2e),
 where the building is not split into units, or the congregation's website says
 it shares space. Congregations in separate units of one strip mall, office,
 flex, industrial or apartment building are **co-tenants**: separate places of

@@ -54,6 +54,22 @@ CITIES = {
         geocoder="charlotte", irs_file="eo_nc.csv",
         report_dir=ROOT / "v0" / "charlotte", db_name="charlotte_v0.duckdb", geo_hint="Charlotte, NC",
     ),
+    "sf": dict(
+        name="San Francisco, CA", short="SF", state="CA", area_label="supervisor district",
+        bbox=dict(xmin=-122.5150, xmax=-122.3550, ymin=37.7080, ymax=37.8330),
+        zip3=("941",), irs_city="SAN FRANCISCO",
+        place_re=r"\b(san francisco|s\.?f\.?|c\.?a\.?|california)\b",
+        geocoder="sf", irs_file="eo_ca.csv",
+        report_dir=ROOT / "v0" / "sf", db_name="sf_v0.duckdb", geo_hint="San Francisco, CA",
+    ),
+    "houston": dict(
+        name="Houston, TX", short="Houston", state="TX", area_label="council district",
+        bbox=dict(xmin=-95.9100, xmax=-95.0100, ymin=29.5200, ymax=30.1200),
+        zip3=("770", "772"), irs_city="HOUSTON",
+        place_re=r"\b(houston|t\.?x\.?|texas)\b",
+        geocoder="houston", irs_file="eo_tx.csv",
+        report_dir=ROOT / "v0" / "houston", db_name="houston_v0.duckdb", geo_hint="Houston, TX",
+    ),
 }
 if CITY not in CITIES:
     raise SystemExit(f"unknown CITY={CITY!r}; choose from {sorted(CITIES)}")

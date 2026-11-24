@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Rebuild one city end to end:  v0/run_city.sh nyc|dc [--after-extract]
+# Rebuild one city end to end:  v0/run_city.sh nyc|dc|charlotte|sf|houston [--after-extract]
 # data/ is not in git, so a new session starts empty (about an hour for NYC,
 # less for DC). Extraction (step 4b) is left out: pilot it and review it by
 # hand (see CLAUDE.md), then rerun from step 4c with --after-extract.
+# Houston needs HCAD's zips unzipped first (see CLAUDE.md, Cities).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export CITY="${1:?usage: v0/run_city.sh nyc|dc [--after-extract]}"
+export CITY="${1:?usage: v0/run_city.sh nyc|dc|charlotte|sf|houston [--after-extract]}"
 [ -d .venv ] || python3 -m venv .venv
 .venv/bin/pip install -q -r requirements.txt
 py=.venv/bin/python

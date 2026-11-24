@@ -122,11 +122,8 @@ def make_geocoder(con):
     """
     if config.GEOCODER == "geosearch":
         return geosearch
-    if config.GEOCODER == "charlotte":
-        import charlotte
-        return charlotte.make_geocoder(con)
-    import dc
-    return dc.make_geocoder(con)
+    import importlib
+    return importlib.import_module(config.GEOCODER).make_geocoder(con)
 
 
 def assign_lots(con, table: str, key: str, near_m: float = 30):
