@@ -1,6 +1,6 @@
 # Version 0 report: New York City
 
-Run 2026-11-23. 9,522 Overture places in the seven worship categories. Colocation is judged at the lot where each congregation gathers: the address its own website gives for services when we could place it, otherwise its listing. Extraction used Claude Haiku 5.5 on 3,076 sites ($4.13).
+Run 2026-11-24. 9,522 Overture places in the seven worship categories. Colocation is judged at the lot where each congregation gathers: the address its own website gives for services when we could place it, otherwise its listing. Extraction used Claude Haiku 5.5 on 3,076 sites ($4.13).
 
 ## From listing to gathering place
 
@@ -19,22 +19,22 @@ Run 2026-11-23. 9,522 Overture places in the seven worship categories. Colocatio
 
 | tradition | school | shared | commercial | single-use | unknown |
 | --- | --- | --- | --- | --- | --- |
-| Buddhist | 0 | 15 | 24 | 46 | 17 |
-| Catholic | 67 | 111 | 16 | 295 | 58 |
-| Hindu | 0 | 10 | 24 | 44 | 40 |
-| Jewish | 33 | 96 | 72 | 298 | 113 |
-| Muslim | 12 | 41 | 66 | 130 | 42 |
-| Orthodox Christian | 12 | 12 | 4 | 39 | 3 |
-| Protestant and other Christian | 177 | 1699 | 1021 | 2308 | 838 |
-| Sikh | 0 | 5 | 2 | 8 | 1 |
-| Unknown | 59 | 525 | 432 | 299 | 408 |
+| Buddhist | 0 | 8 | 26 | 49 | 19 |
+| Catholic | 67 | 99 | 17 | 304 | 60 |
+| Hindu | 0 | 6 | 28 | 44 | 40 |
+| Jewish | 33 | 88 | 75 | 302 | 114 |
+| Muslim | 12 | 31 | 72 | 134 | 42 |
+| Orthodox Christian | 12 | 9 | 4 | 42 | 3 |
+| Protestant and other Christian | 177 | 1161 | 1399 | 2411 | 895 |
+| Sikh | 0 | 4 | 3 | 8 | 1 |
+| Unknown | 59 | 316 | 580 | 335 | 433 |
 
 Colocation by where the address came from:
 
 | address_basis | school | shared | commercial | single-use | unknown |
 | --- | --- | --- | --- | --- | --- |
-| listing | 246 | 2020 | 1500 | 2640 | 1380 |
-| website | 114 | 494 | 161 | 827 | 140 |
+| listing | 246 | 1307 | 1986 | 2788 | 1459 |
+| website | 114 | 415 | 218 | 841 | 148 |
 
 Of the school flags, 147 are a private school on a religious-owned lot: most likely the congregation's own school, not a rental. The full rules split these out as "own school on campus".
 
@@ -109,8 +109,8 @@ Evidence behind each "shared" flag after merging:
 
 | shared_evidence | places | lots |
 | --- | --- | --- |
-| listings only | 1861 | 796 |
-| two or more IRS congregations | 554 | 200 |
+| listings only | 1224 | 551 |
+| two or more IRS congregations | 399 | 150 |
 | website says so | 99 | 83 |
 
 ### IRS registrations

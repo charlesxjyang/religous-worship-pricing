@@ -1,41 +1,45 @@
 # Shared and multi-use worship space in DC: first pass
 
-Run 2026-11-23. 903 congregations (after merging duplicate listings), each placed on the tax lot where it gathers. For 265 the lot comes from the congregation's own website; for the rest it is the Overture listing. The unit is the tax lot (BBL); the same-building (BIN) rows below are the stricter test.
+Run 2026-11-24. 903 congregations (after merging duplicate listings), each placed on the tax lot where it gathers. For 265 the lot comes from the congregation's own website; for the rest it is the Overture listing. The unit is the tax lot (BBL); the same-building (BIN) rows below are the stricter test.
 
-## 1. Congregations sharing a building with other congregations
+## 1. Congregations sharing worship space with other congregations
+
+Sharing means two distinct congregations using the same worship space: another congregation in the same building, where the building is not split into units, or the congregation's own website saying it shares space or meets at another congregation. Congregations in separate units of one store, office, industrial or apartment building are co-tenants: separate places of worship, not sharing.
 
 | test | congregations | share |
 | --- | --- | --- |
-| Same tax lot as at least one other congregation | 232 | 25.7% |
-| ... and the IRS shows 2+ congregations registered on the lot | 20 | 2.2% |
+| Shares worship space with another congregation | 179 | 19.8% |
+| ... and the IRS shows 2+ congregations registered there | 22 | 2.4% |
+| Co-tenant: another congregation in a separate unit of the s… | 30 | 3.3% |
+| For reference: same tax lot as another congregation | 232 | 25.7% |
 
-This city's parcel records carry no building IDs, so only the lot test is available; a lot can hold more than one building. The lot row is an upper bound: a congregation listed twice under unrelated names still looks like two. The IRS-corroborated rows are closer to lower bounds, since many congregations are registered at another address or not at all. Lots with 2+ congregations, by how many share:
+888 of 903 congregations are placed in a building, from building footprints (Overture); the rest are judged by their lot. The sharing row is an upper bound in one way (two listings for one congregation under unrelated names still look like two) and the IRS row a lower bound (many congregations are registered elsewhere or not at all). Buildings with shared worship space, by how many congregations share it:
 
-| congregations_on_lot | lots | congregations |
+| congregations_in_space | buildings | congregations |
 | --- | --- | --- |
-| 2 | 85 | 170 |
-| 3 | 19 | 57 |
+| 2 | 64 | 128 |
+| 3 | 12 | 36 |
 | 5 or more | 1 | 5 |
 
 ## 2. Congregations in a building also used for something else
 
 269 congregations (29.8%) gather on a lot whose building is not a religious building or its own school. For 42 of them the IRS registration is on the same lot, which corroborates that the congregation is based there. 69 of the 269 are homes with no evidence either way (see the check below). 16 more are set aside as location unknown, because their home address looks like a mailing address. By building type (DOF building class, NCES schools on the lot, and the checks below):
 
-| building_use | congregations | pct | also_shared_with_other_congregations | irs_registered_on_lot |
-| --- | --- | --- | --- | --- |
-| religious building only | 615 | 68.1 | 177 | 209 |
-| residential | 82 | 9.1 | 8 | 15 |
-| store or office building | 76 | 8.4 | 14 | 11 |
-| vacant or no lot record | 35 | 3.9 | 4 | 6 |
-| other institution or hall | 34 | 3.8 | 9 | 3 |
-| location unknown (home looks like a mailing address) | 16 | 1.8 | 3 | 1 |
-| religious building hosting another school | 11 | 1.2 | 2 | 3 |
-| public or charter school building | 11 | 1.2 | 2 | 1 |
-| independent private school building | 8 | 0.9 | 6 | 1 |
-| industrial, garage or loft | 7 | 0.8 | 2 | 2 |
-| college or university building | 4 | 0.4 | 3 | 0 |
-| its own school (religious complex) | 3 | 0.3 | 2 | 0 |
-| school building, owner unrelated | 1 | 0.1 | 0 | 0 |
+| building_use | congregations | pct | sharing_worship_space | cotenants | irs_registered_on_lot |
+| --- | --- | --- | --- | --- | --- |
+| religious building only | 615 | 68.1 | 161 | 0 | 209 |
+| residential | 82 | 9.1 | 0 | 6 | 15 |
+| store or office building | 76 | 8.4 | 3 | 12 | 11 |
+| vacant or no lot record | 35 | 3.9 | 5 | 0 | 6 |
+| other institution or hall | 34 | 3.8 | 3 | 7 | 3 |
+| location unknown (home looks like a mailing address) | 16 | 1.8 | 0 | 3 | 1 |
+| religious building hosting another school | 11 | 1.2 | 2 | 0 | 3 |
+| public or charter school building | 11 | 1.2 | 0 | 0 | 1 |
+| independent private school building | 8 | 0.9 | 3 | 0 | 1 |
+| industrial, garage or loft | 7 | 0.8 | 0 | 2 | 2 |
+| college or university building | 4 | 0.4 | 2 | 0 | 0 |
+| its own school (religious complex) | 3 | 0.3 | 0 | 0 | 0 |
+| school building, owner unrelated | 1 | 0.1 | 0 | 0 | 0 |
 
 ### Checking homes: gathering place or mailing address?
 
@@ -68,10 +72,10 @@ Congregations on a lot holding an NCES school, or in a school-class building. Ow
 
 ## Both questions together
 
-| building | alone_on_lot | with_other_congregations | total |
+| building | not_sharing | sharing_worship_space | total |
 | --- | --- | --- | --- |
-| religious building only | 452 | 182 | 634 |
-| other-use building | 219 | 50 | 269 |
+| religious building only | 473 | 161 | 634 |
+| other-use building | 251 | 18 | 269 |
 
 The plan's price signal sits in the three cells other than "religious building only, alone": congregations that economize on space by sharing a sanctuary, renting a storefront or school, or meeting in a home.
 
@@ -79,10 +83,10 @@ The plan's price signal sits in the three cells other than "religious building o
 
 | tradition | congregations | pct_sharing | pct_other_use_building | pct_either |
 | --- | --- | --- | --- | --- |
-| Protestant and other Christian | 783 | 26.0 | 28.0 | 49.0 |
-| Catholic | 62 | 29.0 | 42.0 | 58.0 |
-| Unknown | 20 | 25.0 | 45.0 | 60.0 |
-| Jewish | 15 | 20.0 | 20.0 | 40.0 |
+| Protestant and other Christian | 783 | 20.0 | 28.0 | 47.0 |
+| Catholic | 62 | 21.0 | 42.0 | 55.0 |
+| Unknown | 20 | 25.0 | 45.0 | 65.0 |
+| Jewish | 15 | 27.0 | 20.0 | 47.0 |
 
 Tradition comes from the congregation's own website where extraction read one, else from the Overture category; "Unknown" is mostly Overture's generic categories with no usable website.
 
@@ -90,22 +94,22 @@ Tradition comes from the congregation's own website where extraction read one, e
 
 | ward | congregations | pct_sharing | pct_other_use_building | pct_either |
 | --- | --- | --- | --- | --- |
-| Ward 1 | 51 | 14.0 | 43.0 | 51.0 |
-| Ward 2 | 128 | 27.0 | 32.0 | 56.0 |
-| Ward 3 | 60 | 48.0 | 23.0 | 63.0 |
-| Ward 4 | 143 | 40.0 | 23.0 | 54.0 |
-| Ward 5 | 145 | 16.0 | 41.0 | 50.0 |
-| Ward 6 | 123 | 25.0 | 31.0 | 51.0 |
-| Ward 7 | 159 | 21.0 | 25.0 | 42.0 |
-| Ward 8 | 94 | 19.0 | 23.0 | 38.0 |
+| Ward 1 | 51 | 12.0 | 43.0 | 51.0 |
+| Ward 2 | 128 | 26.0 | 32.0 | 55.0 |
+| Ward 3 | 60 | 35.0 | 23.0 | 58.0 |
+| Ward 4 | 143 | 29.0 | 23.0 | 48.0 |
+| Ward 5 | 145 | 8.0 | 41.0 | 49.0 |
+| Ward 6 | 123 | 23.0 | 31.0 | 50.0 |
+| Ward 7 | 159 | 17.0 | 25.0 | 40.0 |
+| Ward 8 | 94 | 13.0 | 23.0 | 36.0 |
 
 ## How the population changes the answer
 
 | population | congregations | pct_sharing | pct_other_use_building |
 | --- | --- | --- | --- |
-| All listings, any category or confidence | 1156 | 33.4 | 35.8 |
-| Headline (worship categories, confidence 0.5+) | 903 | 25.7 | 29.8 |
-| Headline, IRS-registered congregations only | 348 | 21.0 | 21.0 |
+| All listings, any category or confidence | 1156 | 19.1 | 35.8 |
+| Headline (worship categories, confidence 0.5+) | 903 | 19.8 | 29.8 |
+| Headline, IRS-registered congregations only | 348 | 18.7 | 21.0 |
 
 ## Caveats
 

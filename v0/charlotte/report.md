@@ -20,21 +20,21 @@ Run 2026-11-24. 1,556 Overture places in the seven worship categories. Colocatio
 | tradition | school | shared | commercial | single-use | unknown |
 | --- | --- | --- | --- | --- | --- |
 | Buddhist | 0 | 2 | 1 | 9 | 0 |
-| Catholic | 9 | 4 | 0 | 7 | 0 |
+| Catholic | 9 | 3 | 0 | 8 | 0 |
 | Hindu | 0 | 1 | 1 | 0 | 0 |
 | Jewish | 1 | 0 | 0 | 7 | 1 |
 | Muslim | 4 | 0 | 4 | 6 | 4 |
-| Orthodox Christian | 0 | 1 | 0 | 6 | 0 |
-| Protestant and other Christian | 78 | 453 | 103 | 413 | 156 |
+| Orthodox Christian | 0 | 0 | 0 | 7 | 0 |
+| Protestant and other Christian | 78 | 256 | 178 | 473 | 218 |
 | Sikh | 0 | 0 | 0 | 1 | 0 |
-| Unknown | 13 | 131 | 47 | 34 | 59 |
+| Unknown | 13 | 79 | 64 | 48 | 80 |
 
 Colocation by where the address came from:
 
 | address_basis | school | shared | commercial | single-use | unknown |
 | --- | --- | --- | --- | --- | --- |
-| listing | 62 | 460 | 133 | 316 | 195 |
-| website | 43 | 132 | 23 | 167 | 25 |
+| listing | 62 | 257 | 205 | 370 | 272 |
+| website | 43 | 84 | 43 | 189 | 31 |
 
 Of the school flags, 49 are a private school on a religious-owned lot: most likely the congregation's own school, not a rental. The full rules split these out as "own school on campus".
 
@@ -45,8 +45,8 @@ Of the school flags, 49 are a private school on a religious-owned lot: most like
 | Protestant and other Christian | 362 | 1.3 | 1.0 | 22.0 | 1.8 |
 | Catholic | 7 | 3.4 | 4.0 | 71.0 | 6.7 |
 | Jewish | 4 | 1.8 | 2.0 | 75.0 | 1.8 |
-| Muslim | 2 | 1.5 | 1.5 | 50.0 | 1.5 |
 | Buddhist | 2 | 1.0 | 1.0 | 0.0 | 2.0 |
+| Muslim | 2 | 1.5 | 1.5 | 50.0 | 1.5 |
 | Unknown | 1 | 1.0 | 1.0 | 0.0 | 1.0 |
 | Orthodox Christian | 1 | 1.0 | 1.0 | 0.0 | 2.0 |
 | Sikh | 1 | 2.0 | 2.0 | 100.0 | 5.0 |
@@ -63,9 +63,9 @@ Of the school flags, 49 are a private school on a religious-owned lot: most like
 | http_404 | 34 |
 | http_403 | 26 |
 | empty | 21 |
-| http_429 | 2 |
-| http_503 | 2 |
 | http_500 | 2 |
+| http_503 | 2 |
+| http_429 | 2 |
 | http_522 | 1 |
 
 Website judged against the listing:
@@ -108,8 +108,8 @@ Evidence behind each "shared" flag after merging:
 
 | shared_evidence | places | lots |
 | --- | --- | --- |
-| listings only | 484 | 186 |
-| two or more IRS congregations | 77 | 25 |
+| listings only | 263 | 106 |
+| two or more IRS congregations | 47 | 17 |
 | website says so | 31 | 25 |
 
 ### IRS registrations

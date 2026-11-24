@@ -1,6 +1,6 @@
 # Version 0 report: Washington, DC
 
-Run 2026-11-23. 1,300 Overture places in the seven worship categories. Colocation is judged at the lot where each congregation gathers: the address its own website gives for services when we could place it, otherwise its listing. Extraction used Claude Haiku 5.5 on 603 sites ($0.84).
+Run 2026-11-24. 1,300 Overture places in the seven worship categories. Colocation is judged at the lot where each congregation gathers: the address its own website gives for services when we could place it, otherwise its listing. Extraction used Claude Haiku 5.5 on 603 sites ($0.84).
 
 ## From listing to gathering place
 
@@ -20,21 +20,21 @@ Run 2026-11-23. 1,300 Overture places in the seven worship categories. Colocatio
 | tradition | school | shared | commercial | single-use | unknown |
 | --- | --- | --- | --- | --- | --- |
 | Buddhist | 1 | 1 | 2 | 3 | 0 |
-| Catholic | 10 | 37 | 4 | 26 | 11 |
+| Catholic | 10 | 26 | 10 | 29 | 13 |
 | Hindu | 0 | 0 | 1 | 0 | 0 |
 | Jewish | 0 | 5 | 0 | 11 | 3 |
 | Muslim | 1 | 2 | 3 | 6 | 2 |
 | Orthodox Christian | 0 | 0 | 0 | 6 | 0 |
-| Protestant and other Christian | 29 | 295 | 75 | 406 | 145 |
+| Protestant and other Christian | 29 | 228 | 102 | 427 | 164 |
 | Sikh | 0 | 0 | 1 | 1 | 0 |
-| Unknown | 13 | 74 | 34 | 41 | 51 |
+| Unknown | 13 | 45 | 47 | 49 | 59 |
 
 Colocation by where the address came from:
 
 | address_basis | school | shared | commercial | single-use | unknown |
 | --- | --- | --- | --- | --- | --- |
-| listing | 33 | 306 | 103 | 342 | 189 |
-| website | 21 | 108 | 17 | 158 | 23 |
+| listing | 33 | 209 | 145 | 373 | 213 |
+| website | 21 | 98 | 21 | 159 | 28 |
 
 Of the school flags, 21 are a private school on a religious-owned lot: most likely the congregation's own school, not a rental. The full rules split these out as "own school on campus".
 
@@ -105,8 +105,8 @@ Evidence behind each "shared" flag after merging:
 
 | shared_evidence | places | lots |
 | --- | --- | --- |
-| listings only | 330 | 138 |
-| two or more IRS congregations | 56 | 23 |
+| listings only | 236 | 104 |
+| two or more IRS congregations | 43 | 20 |
 | website says so | 28 | 24 |
 
 ### IRS registrations
@@ -157,8 +157,8 @@ Lots named by each source. Worship lot = building class M1/M9, or a religious ow
 | 0 | 0 | 0 | 1 | 304 |
 | 1 | 1 | 0 | 0 | 190 |
 | 1 | 1 | 1 | 1 | 146 |
-| 1 | 1 | 1 | 0 | 126 |
 | 1 | 1 | 0 | 1 | 126 |
+| 1 | 1 | 1 | 0 | 126 |
 | 1 | 0 | 0 | 1 | 67 |
 | 0 | 1 | 1 | 0 | 53 |
 | 0 | 1 | 0 | 1 | 30 |
