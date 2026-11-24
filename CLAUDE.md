@@ -52,6 +52,14 @@ Status:
   flag (`shared_evidence`).
 - Scope (Charles, 2026-11-23): NYC plus about two other cities to start.
   Washington, DC is the second and Charlotte, NC the third (Charles, 2026-11-23/24).
+- [x] Price test, NYC and DC (Charles, 2026-11-24, brought forward from the
+  plan's later phase): `v0/analysis_price.py` prices each congregation by the
+  assessed land value of retail and office lots within 1 km and regresses
+  sharing, multi-use and storefront use on it (`v0/analysis_price.md`). Use
+  this local-radius price, not ZIP codes or housing prices, which Charles
+  judged the wrong scale and the wrong market. First run used listing
+  addresses (no extraction in that session); rerun after extraction.
+  Charlotte needs its parcel pull redone with value fields first.
 
 ## Cities
 
@@ -97,6 +105,7 @@ A new cloud session gets environment variables (the API key) but not
 .venv/bin/python v0/step4_geocode.py
 .venv/bin/python v0/step5_colocate.py
 .venv/bin/python v0/step6_report.py
+.venv/bin/python v0/analysis_price.py  # NYC and DC together, after analysis_sharing/services for both
 ```
 
 Only one process can open a city's DuckDB file at a time; run steps in order.
