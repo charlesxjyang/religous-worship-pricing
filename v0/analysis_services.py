@@ -78,7 +78,7 @@ def build(con):
         ), d AS (
           SELECT v.*, k.tradition,
                  CASE WHEN e_min - s_min BETWEEN 15 AND 300 THEN e_min - s_min ELSE {default_case} END AS minutes,
-                 e_min - s_min BETWEEN 15 AND 300 AS posted_end
+                 coalesce(e_min - s_min BETWEEN 15 AND 300, false) AS posted_end  -- NULL end = not posted
           FROM v JOIN cong_sharing k USING (cong_id)
         ), main_day AS (
           SELECT cong_id, max(n) AS max_same_day FROM (
